@@ -2,8 +2,8 @@
 // state into the choreography: buzz on commit, 3-2-1 sting, grid, auto-dim
 // "look up", face-down debrief, anonymous ballots.
 
-import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, tierTagline, TIER_NAMES } from './util.js';
-import { CONF, CONF_ORDER } from './scoring.js';
+import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, tierTagline, TIER_NAMES, confButtons } from './util.js';
+import { CONF } from './scoring.js';
 import * as audio from './audio.js';
 import { getName, setName, recordCalibration, saveSession, getCalibration } from './storage.js';
 import { statsCard } from './statsview.js';
@@ -36,6 +36,16 @@ function nameScreen(opts, errMsg = '') {
     <button class="ghost" data-a="back">Back</button>
   `);
   const name = () => document.querySelector('#nm').value.trim();
+  // return key submits: join if a code is typed, otherwise start a new room
+  const submit = () => {
+    const code = document.querySelector('#code').value.trim();
+    document.querySelector(code ? '[data-a="join"]' : '[data-a="create"]')?.click();
+  };
+  for (const sel of ['#nm', '#code']) {
+    document.querySelector(sel).addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    });
+  }
   bind({
     back: () => onExit(),
     join: () => {
@@ -287,10 +297,7 @@ function commitPredictor(s, left) {
     </div>
     ${pendingAnswer !== null ? `
       <p class="kicker">how sure are you?</p>
-      <div class="conf-row">
-        ${CONF_ORDER.map(c => `<button data-a="conf" data-c="${c}">${CONF[c].label}</button>`).join('')}
-      </div>
-      <p class="muted small center">Surer = more points if right, fewer if wrong. Pass = safe either way.</p>` : ''}
+      <div class="conf-list">${confButtons(p)}</div>` : ''}
   `);
   bind({
     ans: d => {

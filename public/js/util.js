@@ -1,3 +1,5 @@
+import { CONF, CONF_ORDER, scoreChoice } from './scoring.js';
+
 export const $ = sel => document.querySelector(sel);
 export const $$ = sel => [...document.querySelectorAll(sel)];
 
@@ -66,6 +68,20 @@ export async function keepAwake() {
       }
     });
   } catch {}
+}
+
+// The four confidence stops rendered as a visual scale: percentage, a fill bar
+// at that percentage, and the exact points at stake for this question.
+export function confButtons(probe) {
+  const k = probe.options && probe.options.length > 2 ? probe.options.length : 2;
+  return CONF_ORDER.map(c => {
+    const pc = Math.round(CONF[c].p * 100);
+    const win = scoreChoice(c, true, k), lose = scoreChoice(c, false, k);
+    const pts = win === lose ? `+${win} either way` : `right +${win} · wrong +${lose}`;
+    return `<button class="conf-btn" data-a="conf" data-c="${c}"
+      style="background:linear-gradient(90deg, rgba(255,180,84,.12) ${pc}%, var(--panel) ${pc}%)">
+      <span>${CONF[c].label} · ${pc}%</span><span class="conf-pts">${pts}</span></button>`;
+  }).join('');
 }
 
 export const TIER_NAMES = { 0: 'Tutorial', 1: 'Surface', 2: 'Character', 3: 'Skin', 4: 'Confession', 5: 'Vault' };

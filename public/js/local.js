@@ -5,8 +5,8 @@
 // probes; bigger groups play the table deck — relational probes included —
 // capped at Tier 4.
 
-import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, tierTagline, TIER_NAMES } from './util.js';
-import { CONF, CONF_ORDER, scoreChoice, scoreScale, GRADES, GRADE_ORDER } from './scoring.js';
+import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, tierTagline, TIER_NAMES, confButtons } from './util.js';
+import { CONF, scoreChoice, scoreScale, GRADES, GRADE_ORDER } from './scoring.js';
 import { computeStats, roundFlavor, interimStats } from './stats.js';
 import { statsCard } from './statsview.js';
 import { loadDeck, draw } from './deck.js';
@@ -28,27 +28,31 @@ function setup() {
   S = { players: [], tier: 1, round: 0, scored: 0, sinceBallot: 0, subjectIdx: -1, used: new Set(), history: [], votes: [] };
   const paint = (msg = '') => {
     render(`
-      <p class="kicker">local · one phone, pass it around</p>
+      <p class="kicker">one phone · pass it around</p>
+      <p class="muted small">Who's playing? Type a name, press return, repeat.</p>
       <div class="player-list">${S.players.map(p => `<div class="player-row"><span>${esc(p.name)}</span></div>`).join('')}</div>
-      <input type="text" id="nm" placeholder="Add a first name" maxlength="16" autocomplete="off">
+      <input type="text" id="nm" placeholder="First name" maxlength="16" autocomplete="off" enterkeyhint="done">
       ${msg ? `<p class="small" style="color:var(--bad)">${esc(msg)}</p>` : ''}
-      <div class="btn-row">
-        <button data-a="add">Add</button>
-        <button class="primary" data-a="go" ${S.players.length < 2 ? 'disabled' : ''}>Start</button>
-      </div>
-      <p class="muted small center">${S.players.length === 2 ? 'Two players — tiers go all the way to the Vault.' : S.players.length > 2 ? 'Group game — tiers go to Confession.' : 'Two players go deepest; any number works.'}</p>
+      <button class="primary" data-a="go">Start</button>
+      <p class="muted small center">${S.players.length === 2 ? 'Two players — the questions can go all the way to the Vault.' : S.players.length > 2 ? 'Group game — the questions go up to Confession.' : 'Two players go deepest; any number works.'}</p>
       <button class="ghost" data-a="back">Back</button>
     `);
+    // typing a name and hitting Start (or return) just works — no separate Add step
+    const nm = document.querySelector('#nm');
+    const absorb = () => {
+      const n = nm.value.trim();
+      if (!n) return true;
+      if (S.players.some(p => p.name.toLowerCase() === n.toLowerCase())) { paint('Names must differ.'); return false; }
+      S.players.push({ id: S.players.length, name: n });
+      paint();
+      return true;
+    };
+    nm.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); absorb(); } });
     bind({
       back: () => onExit(),
-      add: () => {
-        const n = document.querySelector('#nm').value.trim();
-        if (!n) return;
-        if (S.players.some(p => p.name.toLowerCase() === n.toLowerCase())) return paint('Names must differ.');
-        S.players.push({ id: S.players.length, name: n });
-        paint();
-      },
       go: () => {
+        if (!absorb()) return;
+        if (S.players.length < 2) return paint('Add at least two players.');
         audio.unlock();
         S.n = S.players.length;
         S.roundsTotal = S.n <= 2 ? 10 : 2 * S.n;
@@ -58,6 +62,7 @@ function setup() {
         startRound();
       },
     });
+    nm.focus();
   };
   paint();
 }
@@ -147,8 +152,7 @@ function predictScreen(i) {
       render(`${head}
         <div class="options">${p.options.map(o => `<button class="${chosen === o ? 'selected' : ''}" data-a="ans" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>
         ${chosen !== null ? `<p class="kicker">how sure are you?</p>
-        <div class="conf-row">${CONF_ORDER.map(c => `<button data-a="conf" data-c="${c}">${CONF[c].label}</button>`).join('')}</div>
-        <p class="muted small center">Surer = more points if right, fewer if wrong. Pass = safe either way.</p>` : ''}`);
+        <div class="conf-list">${confButtons(p)}</div>` : ''}`);
       bind({
         ans: d => { chosen = d.o; paint(); },
         conf: d => next({ answer: chosen, conf: d.c }),

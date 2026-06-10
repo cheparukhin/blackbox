@@ -77,6 +77,12 @@ button:disabled { opacity: 0.4; pointer-events: none; }
 .btn-row { display: flex; gap: 10px; }
 .btn-row button { flex: 1; }
 .conf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.conf-list { display: flex; flex-direction: column; gap: 8px; }
+.conf-btn {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  min-height: 52px; padding: 10px 14px; font-size: 17px; text-align: left;
+}
+.conf-pts { color: var(--dim); font-size: 13px; font-weight: 600; white-space: nowrap; }
 .options { display: flex; flex-direction: column; gap: 10px; }
 
 /* ----- panels / lists ----- */
