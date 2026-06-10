@@ -59,6 +59,10 @@ try {
   await new Promise(r => setTimeout(r, 300));
   assert(alice.state?.players.length === 4, '4 players in lobby');
 
+  // demo configuration: one rotation, fast pace — the post-hackathon setup
+  alice.act('settings', { rounds: 4, pace: 'demo' });
+  await new Promise(r => setTimeout(r, 150));
+  assert(alice.state?.settings.rounds === 4 && alice.state?.settings.pace === 'demo', 'rounds + pace settings applied');
   alice.act('start');
 
   const all = [alice, ...others];
@@ -87,7 +91,7 @@ try {
     // preds[2] never commits → timeout auto-pass
     subject.act('truth', { answer: opts[0] });
 
-    await alice.waitPhase('reveal', 10000); // commit timer is 5s
+    await alice.waitPhase('reveal', 15000); // demo-pace commit timer is 10s
     assert(preds[0].state.commits?.length === 3, 'reveal grid carries all predictors');
     const auto = preds[0].state.commits.find(c => c.auto);
     assert(!!auto, 'missing commit became an auto-pass');
@@ -102,20 +106,30 @@ try {
       assert(wrong.pts === scoreChoice('lean', false, k), `lean miss scores ${wrong.pts}`);
     }
     await alice.waitPhase('debrief');
+    alice.act('endDebrief'); // anyone can flip their phone and end it early
     await alice.waitPhase('reply', 10000);
-    alice.state.you.isSubject ? alice.act('endReply') : subject.act('endReply');
+    subject.act('endReply');
   };
 
   await playRound(true);   // tutorial
   log('tutorial round complete');
   for (let i = 0; i < 4; i++) { await playRound(false); log(`scored round ${i + 1} complete`); }
 
-  // full rotation done → ballot fires on all phones
+  // full rotation done → ballot fires on all phones, even though rounds are up
   const bs = await alice.waitPhase('ballot', 15000);
   assert(bs.voteCount === null, 'ballot leaks no counts');
   all.forEach(c => c.act('vote', { v: 'deepen' }));
   const br = await alice.waitPhase('ballotResult', 10000);
   assert(br.ballotOutcome.dir === 'deepen' && br.ballotOutcome.tier === 2, 'unanimous deepen → tier 2');
+
+  // …then straight to the end card, with awards despite the short session
+  const st = await alice.waitPhase('stats', 15000);
+  assert(!!st.statsData, 'end card data present');
+  assert(!!st.statsData.oracle, `Oracle awarded: ${st.statsData.oracle?.name}`);
+  assert(!!st.statsData.boldest, `Boldest Call awarded: ${st.statsData.boldest?.name}`);
+  assert(!!st.statsData.openBook, `Open Book shown: ${st.statsData.openBook?.name}`);
+  assert(st.statsData.totals.every(t => t.n > 0 ? t.total > 0 : true), 'every player has points');
+  assert(Array.isArray(st.history) && st.history.length === 4, 'history carries 4 scored rounds');
 
   log(failed ? 'SMOKE FAILED' : 'SMOKE PASSED');
 } catch (e) {

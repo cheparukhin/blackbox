@@ -53,14 +53,21 @@ const httpServer = http.createServer((req, res) => {
 const rooms = new Map();
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTVWXYZ23456789'; // no ambiguous glyphs
 // No house-rule toggles — sensible defaults everywhere; the consent machinery
-// is the tier ballot and the invisible burn, not settings screens.
-const SETTINGS = {
-  commitSec: Number(process.env.BB_COMMIT_SEC) || 15,
-  debriefSec: Number(process.env.BB_DEBRIEF_SEC) || 90,
-  replySec: Number(process.env.BB_REPLY_SEC) || 30,
-  rounds: Number(process.env.BB_ROUNDS) || 12,
+// is the tier ballot and the invisible burn, not settings screens. The only
+// knobs are rounds and pace ("demo" compresses every timer for stage demos).
+const PACE = {
+  standard: {
+    preview: 8, probe: 30, truth: 4, ballot: 25,
+    commit: Number(process.env.BB_COMMIT_SEC) || 15,
+    debrief: Number(process.env.BB_DEBRIEF_SEC) || 90,
+    reply: Number(process.env.BB_REPLY_SEC) || 30,
+  },
+  demo: { preview: 5, probe: 20, truth: 3, ballot: 15, commit: 10, debrief: 25, reply: 10 },
 };
+const DEFAULT_ROUNDS = Number(process.env.BB_ROUNDS) || 12;
+const ROUND_CHOICES = [4, 6, 8, 12, 16, 20];
 const TABLE_TIER_CAP = 4;
+const tm = room => PACE[room.settings.pace] || PACE.standard;
 
 function newCode() {
   let code;
@@ -75,9 +82,9 @@ function mkRoom() {
     players: [],            // {id, name, connected}
     sockets: new Map(),     // pid -> ws
     stages: new Set(),      // ws
-    settings: { ...SETTINGS },
+    settings: { rounds: DEFAULT_ROUNDS, pace: 'standard' },
     phase: 'lobby', phaseStartedAt: Date.now(), phaseEndsAt: null, timer: null,
-    tier: 1, round: -1, roundsPlayed: 0, roundsTotal: SETTINGS.rounds,
+    tier: 1, round: -1, roundsPlayed: 0, roundsTotal: DEFAULT_ROUNDS,
     subjectIdx: -1, sinceBallot: 0,
     probe: null, used: new Set(),
     commits: new Map(),     // pid -> {answer, conf, auto}
@@ -136,12 +143,17 @@ function onTimeout(room) {
     case 'commit': toReveal(room); break;
     case 'reveal': // subject vanished mid-reveal: score if truth is in, otherwise skip
       if (room.truth !== null) confirmTruth(room); else abandonRound(room); break;
-    case 'truth': setPhase(room, 'debrief', room.settings.debriefSec); break;
-    case 'debrief': setPhase(room, 'reply', room.settings.replySec); break;
+    case 'truth': setPhase(room, 'debrief', tm(room).debrief); break;
+    case 'debrief': setPhase(room, 'reply', tm(room).reply); break;
     case 'reply': endRound(room); break;
     case 'ballot': resolveBallot(room); break;
-    case 'ballotResult': startRound(room); break;
+    case 'ballotResult': afterBallot(room); break;
   }
+}
+
+function afterBallot(room) {
+  if (room.roundsPlayed >= room.roundsTotal) toStats(room);
+  else startRound(room);
 }
 
 function startRound(room) {
@@ -151,11 +163,11 @@ function startRound(room) {
   room.commits = new Map();
   room.truth = null; room.truthConfirmed = false; room.roundPts = null;
   room.ballotOutcome = null;
-  setPhase(room, 'preview', 8);
+  setPhase(room, 'preview', tm(room).preview);
 }
 
-function toProbe(room) { setPhase(room, 'probe', 30); }
-function toCommit(room) { setPhase(room, 'commit', room.settings.commitSec); }
+function toProbe(room) { setPhase(room, 'probe', tm(room).probe); }
+function toCommit(room) { setPhase(room, 'commit', tm(room).commit); }
 
 function maybeAdvanceCommit(room) {
   const preds = predictorsOf(room);
@@ -197,22 +209,24 @@ function confirmTruth(room) {
       subjectId: subjectOf(room).id, subjectName: subjectOf(room).name, truth: room.truth, preds,
     });
   }
-  setPhase(room, 'truth', 4);
+  setPhase(room, 'truth', tm(room).truth);
 }
 
 function abandonRound(room) { startRound(room); }
 
 function endRound(room) {
   if (room.round > 0) { room.roundsPlayed += 1; room.sinceBallot += 1; }
-  if (room.round > 0 && room.roundsPlayed >= room.roundsTotal) { toStats(room); return; }
+  // ballot before stats: a completed last rotation still votes, so a one-rotation
+  // demo shows the ballot, and "one more rotation" resumes at the voted tier
   if (room.round > 0 && room.sinceBallot >= room.players.length) { toBallot(room); return; }
+  if (room.round > 0 && room.roundsPlayed >= room.roundsTotal) { toStats(room); return; }
   startRound(room);
 }
 
 function toBallot(room) {
   room.votes = new Map();
   room.ballotOutcome = null;
-  setPhase(room, 'ballot', 25);
+  setPhase(room, 'ballot', tm(room).ballot);
 }
 
 function resolveBallot(room) {
@@ -249,6 +263,13 @@ function handleAction(room, pid, a, d = {}) {
   const isCreator = room.players[0]?.id === pid;
 
   switch (a) {
+    case 'settings':
+      if (room.phase === 'lobby' && isCreator) {
+        if (ROUND_CHOICES.includes(d.rounds)) { room.settings.rounds = d.rounds; room.roundsTotal = d.rounds; }
+        if (['standard', 'demo'].includes(d.pace)) room.settings.pace = d.pace;
+        broadcast(room);
+      }
+      break;
     case 'start':
       if (room.phase === 'lobby' && isCreator && room.players.length >= 3) startRound(room);
       break;
@@ -313,7 +334,7 @@ function handleAction(room, pid, a, d = {}) {
       }
       break;
     case 'splinterAck':
-      if (room.phase === 'splinter') startRound(room);
+      if (room.phase === 'splinter') afterBallot(room);
       break;
     case 'skip': // any player may unstick a round whose subject dropped
       if (['preview', 'probe', 'commit', 'reveal'].includes(room.phase) && !subjectOf(room)?.connected) abandonRound(room);

@@ -36,19 +36,22 @@ export function computeStats(history, players, simpleMode = false) {
     total: t.pts, n: t.n, correct: t.correct, scored: t.scored,
   }));
 
-  // Oracle — best reader: highest average points (simple mode: most correct). Min 3 predictions.
-  const eligible = totals.filter(t => t.n >= 3);
+  // Oracle — best reader: highest average points (simple mode: most correct).
+  // Min 2 predictions so short demo sessions still crown one.
+  const eligible = totals.filter(t => t.n >= 2);
   let oracle = null;
   if (eligible.length) {
     const sorted = [...eligible].sort((a, b) => simpleMode ? (b.correct - a.correct) : (b.avg - a.avg));
     oracle = sorted[0];
   }
 
-  // Open Book / Enigma — most/least legible subject (a stat, not a score). Min 4 predictions about them.
+  // Open Book / Enigma — most/least legible subject (a stat, not a score, so a
+  // coarse rate is fine). Min 2 scored predictions, so one rotation of any
+  // table qualifies even with a timeout or two.
   const legible = [];
   for (const p of players) {
     const preds = onSubject.get(p.id) || [];
-    if (preds.length >= 4) {
+    if (preds.length >= 2) {
       const hits = preds.filter(x => x.correct).length;
       legible.push({ pid: p.id, name: p.name, rate: hits / preds.length, n: preds.length });
     }

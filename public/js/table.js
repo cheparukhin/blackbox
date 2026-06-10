@@ -107,14 +107,21 @@ const SCREENS = {
       <div class="player-list">
         ${s.players.map(p => `<div class="player-row"><span>${esc(p.name)}${p.id === s.creatorId ? ' <span class="muted small">opened the table</span>' : ''}</span><span class="${p.connected ? '' : 'off'}">${p.connected ? '●' : 'away'}</span></div>`).join('')}
       </div>
-      ${isCreator
-        ? `<button class="primary" data-a="start" ${s.players.length < 3 ? 'disabled' : ''}>${s.players.length < 3 ? 'Need 3+ players' : 'Start'}</button>`
-        : `<p class="muted center small">Waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
+      ${isCreator ? `
+        <div class="btn-row">
+          <button class="ghost" data-a="rounds">${s.settings.rounds} rounds</button>
+          <button class="ghost" data-a="pace">${s.settings.pace === 'demo' ? '⚡ demo pace' : 'standard pace'}</button>
+        </div>
+        <button class="primary" data-a="start" ${s.players.length < 3 ? 'disabled' : ''}>${s.players.length < 3 ? 'Need 3+ players' : 'Start'}</button>`
+        : `<p class="muted center small">${s.settings.rounds} rounds · ${esc(s.settings.pace)} pace — waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
       <button class="ghost" data-a="stage">Use this device as a big screen</button>
     `);
+    const ROUNDS = [4, 6, 8, 12, 16, 20];
     bind({
       start: () => act('start'),
       stage: () => { location.href = `/?room=${s.code}&stage=1`; },
+      rounds: () => act('settings', { rounds: ROUNDS[(ROUNDS.indexOf(s.settings.rounds) + 1) % ROUNDS.length] }),
+      pace: () => act('settings', { pace: s.settings.pace === 'demo' ? 'standard' : 'demo' }),
     });
   },
 
