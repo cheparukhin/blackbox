@@ -143,14 +143,15 @@ textarea { min-height: 90px; resize: none; }
 .num-label {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-  padding: 0 14px; color: var(--dim); font-weight: 600; font-size: 16px; flex: 1;
+  padding: 10px 14px; color: var(--dim); font-weight: 600; font-size: 16px; flex: 1;
+  min-height: 58px;
 }
 .num-label input {
-  border: none; background: transparent; width: 64px; min-height: 54px;
-  font-size: 19px; font-weight: 700; text-align: center; color: var(--ink);
-  padding: 0; border-radius: 0;
+  border: 1px solid var(--line); background: var(--panel2); width: 72px; height: 38px;
+  font-size: 18px; font-weight: 700; text-align: center; color: var(--ink);
+  padding: 0; border-radius: 8px;
 }
-.num-label input:focus { outline: none; }
+.num-label input:focus { outline: 1px solid var(--amber); }
 
 /* ----- settings ----- */
 .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
