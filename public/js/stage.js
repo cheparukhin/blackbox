@@ -73,6 +73,7 @@ const VIEWS = {
     render(`
       <p class="kicker">the truth</p>
       <div class="truth-big">${esc(s.truth)}</div>
+      ${s.flavor ? `<p class="split-flag" style="font-size:2.4vw">${esc(s.flavor)}</p>` : ''}
     `, 'stage');
   },
   debrief(s) {
@@ -94,10 +95,18 @@ const VIEWS = {
     const line = o.dir === 'deepen' ? `The table deepens to ${tierLabel(o.tier)}.`
       : o.dir === 'retreat' ? `The table eases back to ${tierLabel(o.tier)}.`
       : `The table stays at ${tierLabel(o.tier)}.`;
-    render(`<p class="lookup-msg">${line}</p>`, 'stage dead');
+    const i = s.interim || {};
+    const parts = [];
+    if (i.oracle) parts.push(`best reader: ${esc(i.oracle)}`);
+    if (i.openBook) parts.push(`open book: ${esc(i.openBook)}`);
+    if (i.enigma) parts.push(`hardest to read: ${esc(i.enigma)}`);
+    render(`
+      <p class="lookup-msg">${line}</p>
+      ${parts.length ? `<p class="kicker" style="text-align:center">so far — ${parts.join(' · ')}</p>` : ''}
+    `, 'stage dead');
   },
   splinter() {
-    render(`<p class="lookup-msg">This is dyad territory.<br>Find a corner.</p>`, 'stage dead');
+    render(`<p class="lookup-msg">This is pair territory.<br>Find a corner.</p>`, 'stage dead');
   },
   stats(s) {
     render(statsCard(s.statsData), 'stage');

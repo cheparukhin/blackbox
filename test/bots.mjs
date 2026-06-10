@@ -39,7 +39,10 @@ function react(bot) {
   if (!me) return;
 
   if (s.phase === 'lobby' && me.isCreator && s.players.length >= 4) {
-    once(bot, key, 1000, () => act(bot, 'start'));
+    once(bot, key, 1000, () => {
+      act(bot, 'settings', { rounds: 4, pace: 'demo' }); // post-hackathon demo config
+      setTimeout(() => act(bot, 'start'), 300);
+    });
   } else if (s.phase === 'preview' && me.isSubject) {
     once(bot, key, 1500, () => act(bot, 'keep'));
   } else if (s.phase === 'probe' && me.isSubject) {

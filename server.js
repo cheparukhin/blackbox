@@ -10,7 +10,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { scoreChoice, scoreAbstain, CONF } from './public/js/scoring.js';
-import { computeStats } from './public/js/stats.js';
+import { computeStats, roundFlavor, interimStats } from './public/js/stats.js';
 import { TUTORIAL } from './public/js/tutorial.js';
 
 const PORT = Number(process.env.PORT || 3000);
@@ -57,7 +57,7 @@ const CODE_CHARS = 'ABCDEFGHJKMNPQRSTVWXYZ23456789'; // no ambiguous glyphs
 // knobs are rounds and pace ("demo" compresses every timer for stage demos).
 const PACE = {
   standard: {
-    preview: 8, probe: 30, truth: 4, ballot: 25,
+    preview: 10, probe: 30, truth: 5, ballot: 25,
     commit: Number(process.env.BB_COMMIT_SEC) || 15,
     debrief: Number(process.env.BB_DEBRIEF_SEC) || 90,
     reply: Number(process.env.BB_REPLY_SEC) || 30,
@@ -88,7 +88,7 @@ function mkRoom() {
     subjectIdx: -1, sinceBallot: 0,
     probe: null, used: new Set(),
     commits: new Map(),     // pid -> {answer, conf, auto}
-    truth: null, truthConfirmed: false, roundPts: null,
+    truth: null, truthConfirmed: false, roundPts: null, flavor: null, interim: null,
     votes: new Map(), ballotOutcome: null,
     history: [], statsData: null,
     lastSeen: Date.now(),
@@ -163,7 +163,7 @@ function startRound(room) {
   room.subjectIdx = (room.subjectIdx + 1) % room.players.length;
   room.probe = drawProbe(room, room.round === 0 ? 0 : room.tier);
   room.commits = new Map();
-  room.truth = null; room.truthConfirmed = false; room.roundPts = null;
+  room.truth = null; room.truthConfirmed = false; room.roundPts = null; room.flavor = null;
   room.ballotOutcome = null;
   setPhase(room, 'preview', tm(room).preview);
 }
@@ -207,9 +207,11 @@ function confirmTruth(room) {
   room.roundPts = preds.map(x => ({ pid: x.pid, name: x.name, pts: x.pts, correct: x.correct, auto: x.auto }));
   if (room.round > 0) { // tutorial round: zero stakes, never recorded
     room.history.push({
-      round: room.round, tier: room.probe.tier, probeId: room.probe.id, text: room.probe.text,
+      round: room.round, tier: room.probe.tier, probeId: room.probe.id,
+      text: room.probe.text.replace(/\{name\}/g, subjectOf(room).name),
       subjectId: subjectOf(room).id, subjectName: subjectOf(room).name, truth: room.truth, preds,
     });
+    room.flavor = roundFlavor(room.history);
   }
   setPhase(room, 'truth', tm(room).truth);
 }
@@ -228,6 +230,7 @@ function endRound(room) {
 function toBallot(room) {
   room.votes = new Map();
   room.ballotOutcome = null;
+  room.interim = interimStats(room.history, room.players);
   setPhase(room, 'ballot', tm(room).ballot);
 }
 
@@ -307,7 +310,7 @@ function handleAction(room, pid, a, d = {}) {
       if (room.phase === 'reveal' && isSubject) confirmTruth(room);
       break;
     case 'endDebrief':
-      if (room.phase === 'debrief') setPhase(room, 'reply', room.settings.replySec);
+      if (room.phase === 'debrief') setPhase(room, 'reply', tm(room).reply);
       break;
     case 'extendDebrief':
       if (room.phase === 'debrief' && room.phaseEndsAt) {
@@ -385,6 +388,8 @@ function stateFor(room, pid) {
     truthIn: room.truth !== null,
     truth: showTruth ? room.truth : null,
     roundPts: showTruth ? room.roundPts : null,
+    flavor: showTruth ? room.flavor : null,
+    interim: ['ballotResult', 'splinter'].includes(room.phase) ? room.interim : null,
     commits: showCommits
       ? predictorsOf(room).map(p => {
           const c = room.commits.get(p.id) || { answer: null, conf: null, auto: true };

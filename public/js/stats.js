@@ -76,6 +76,46 @@ export function computeStats(history, players, simpleMode = false) {
   return { oracle, openBook, enigma, boldest, icarus, legibility, totals, simpleMode };
 }
 
+// One playful line about the round that just scored — stats as table talk,
+// never a running total. Priority: streaks > a Damn Sure crash > unanimity.
+export function roundFlavor(history) {
+  const h = history[history.length - 1];
+  if (!h) return null;
+  const scored = h.preds.filter(p => !p.auto && p.correct !== null && p.correct !== undefined);
+  if (!scored.length) return null;
+  const hits = scored.filter(p => p.correct);
+
+  let streak = null;
+  for (const p of hits) {
+    let n = 0;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const pr = history[i].preds.find(x => x.pid === p.pid && !x.auto && x.correct !== null);
+      if (!pr) continue;
+      if (pr.correct) n += 1; else break;
+    }
+    if (n >= 3 && (!streak || n > streak.n)) streak = { name: p.name, n };
+  }
+  if (streak) return `${streak.name} has read ${streak.n} in a row.`;
+
+  const dsMiss = scored.find(p => p.conf === 'damnsure' && !p.correct);
+  if (dsMiss) return `${dsMiss.name} went Damn Sure — and down in flames.`;
+  if (scored.length >= 2 && hits.length === scored.length) return 'Open book — the whole table called it.';
+  if (scored.length >= 2 && hits.length === 0) return 'Nobody saw that coming.';
+  const dsHit = scored.find(p => p.conf === 'damnsure' && p.correct);
+  if (dsHit) return `${dsHit.name} went Damn Sure — and was right.`;
+  return null;
+}
+
+// Mid-session superlatives for the between-rotations beat. Names only, no totals.
+export function interimStats(history, players) {
+  const st = computeStats(history, players, false);
+  return {
+    oracle: st.oracle?.name || null,
+    openBook: st.openBook?.name || null,
+    enigma: st.enigma && st.enigma.pid !== st.openBook?.pid ? st.enigma.name : null,
+  };
+}
+
 // Lifetime calibration buckets from a list of {conf, correct} records.
 export function calibrationFromRecords(records) {
   const buckets = {};

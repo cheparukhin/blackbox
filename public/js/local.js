@@ -5,9 +5,9 @@
 // probes; bigger groups play the table deck — relational probes included —
 // capped at Tier 4.
 
-import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel } from './util.js';
+import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, tierTagline, TIER_NAMES } from './util.js';
 import { CONF, CONF_ORDER, scoreChoice, scoreScale, GRADES, GRADE_ORDER } from './scoring.js';
-import { computeStats } from './stats.js';
+import { computeStats, roundFlavor, interimStats } from './stats.js';
 import { statsCard } from './statsview.js';
 import { loadDeck, draw } from './deck.js';
 import * as audio from './audio.js';
@@ -190,7 +190,10 @@ function revealScreen() {
       <p class="kicker center">${esc(subject().name)} — how close?</p>
       <div class="conf-row">${GRADE_ORDER.map(g => `<button data-a="g" data-g="${g}">${g[0].toUpperCase() + g.slice(1)} · ${GRADES[g]}</button>`).join('')}</div>
     `);
-    bind({ g: d => finishRound([{ ...pred, answer: pred.text, conf: null, p: null, correct: GRADES[d.g] >= 75, pts: GRADES[d.g] }]) });
+    bind({ g: d => {
+      recordRound([{ ...pred, answer: pred.text, conf: null, p: null, correct: GRADES[d.g] >= 75, pts: GRADES[d.g] }]);
+      debriefScreen();
+    } });
     return;
   }
 
@@ -203,6 +206,7 @@ function revealScreen() {
     const correct = c.answer === S.truth.answer;
     return { ...c, conf: c.conf, p: CONF[c.conf].p, correct, pts: S.round === 0 ? 0 : scoreChoice(c.conf, correct, k) };
   });
+  const flavor = recordRound(scored);
   const truthShown = S.truth.answer ?? S.truth.value;
   render(`
     <p class="kicker center">everyone — look</p>
@@ -216,22 +220,22 @@ function revealScreen() {
         </div>`).join('')}
     </div>
     ${S.round === 0 ? '<p class="muted center">Warm-up — no points.</p>' : ''}
+    ${flavor ? `<p class="split-flag">${esc(flavor)}</p>` : ''}
     <button class="primary" data-a="next">Phone down — debrief</button>
   `);
-  bind({ next: () => finishRound(scored) });
+  bind({ next: () => debriefScreen() });
 }
 
-function finishRound(scored) {
-  if (S.round > 0) {
-    S.history.push({
-      round: S.round, tier: S.probe.tier, text: probeText(S.probe.text, subject().name),
-      subjectId: subject().id, subjectName: subject().name,
-      truth: S.truth.answer ?? S.truth.value ?? S.truth.text,
-      preds: scored.map(c => ({ pid: c.pid, name: c.name, answer: c.answer, conf: c.conf || null, p: c.p ?? null, auto: false, correct: c.correct, pts: c.pts })),
-    });
-    S.scored += 1; S.sinceBallot += 1;
-  }
-  debriefScreen();
+function recordRound(scored) {
+  if (S.round === 0) return null;
+  S.history.push({
+    round: S.round, tier: S.probe.tier, text: probeText(S.probe.text, subject().name),
+    subjectId: subject().id, subjectName: subject().name,
+    truth: S.truth.answer ?? S.truth.value ?? S.truth.text,
+    preds: scored.map(c => ({ pid: c.pid, name: c.name, answer: c.answer, conf: c.conf || null, p: c.p ?? null, auto: false, correct: c.correct, pts: c.pts })),
+  });
+  S.scored += 1; S.sinceBallot += 1;
+  return roundFlavor(S.history);
 }
 
 function debriefScreen() {
@@ -284,10 +288,11 @@ function ballotPass(i) {
 function ballotVote(i) {
   render(`
     <p class="kicker center">secret ballot · only outcomes are shown</p>
-    <p class="center">You're at <b>${tierLabel(S.tier)}</b>.</p>
-    <button class="primary" data-a="v" data-v="deepen">Deepen</button>
-    <button data-a="v" data-v="stay">Stay</button>
-    <button data-a="v" data-v="retreat">Retreat</button>
+    <p class="center">You're at <b>${tierLabel(S.tier)}</b><br>
+      <span class="muted small">${esc(tierTagline(S.tier))}</span></p>
+    <button class="primary" data-a="v" data-v="deepen">Deepen${S.tier >= S.tierCap ? '' : ` · ${TIER_NAMES[S.tier + 1]}`}</button>
+    <button data-a="v" data-v="stay">Stay · ${TIER_NAMES[S.tier]}</button>
+    <button data-a="v" data-v="retreat">Retreat${S.tier > 1 ? ` · ${TIER_NAMES[S.tier - 1]}` : ''}</button>
   `);
   bind({ v: d => {
     S.votes.push(d.v);
@@ -305,7 +310,16 @@ function resolveBallot() {
     line = S.n <= 2 ? `You stay in <b>${tierLabel(S.tier)}</b> — there is nothing deeper.`
       : `Past Tier 4 is pair territory. Find a corner — two people, this phone, local mode.`;
   } else { S.tier += 1; line = `You deepen to <b>${tierLabel(S.tier)}</b>.`; }
-  render(`<p class="lookup-msg">${line}</p><button class="ghost" data-a="go">Continue</button>`, 'dead');
+  const i = interimStats(S.history, S.players);
+  const parts = [];
+  if (i.oracle) parts.push(`best reader: ${esc(i.oracle)}`);
+  if (i.openBook) parts.push(`open book: ${esc(i.openBook)}`);
+  if (i.enigma) parts.push(`hardest to read: ${esc(i.enigma)}`);
+  render(`
+    <p class="lookup-msg">${line}</p>
+    ${parts.length ? `<p class="muted center small">So far — ${parts.join(' · ')}</p>` : ''}
+    <button class="ghost" data-a="go">Continue</button>
+  `, 'dead');
   bind({ go: () => (S.scored >= S.roundsTotal ? statsScreen() : startRound()) });
 }
 

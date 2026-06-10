@@ -60,10 +60,10 @@ reclaim their seats. Dyad mode keeps working offline once a phone has loaded the
 
 ## Before tonight (spec §13)
 
-1. Networking smoke test on venue wifi *and* a phone hotspot — if flaky, lead with the
-   offline fallback.
-2. One table round end-to-end under two minutes; watch whether the auto-dim actually
-   pulls eyes up.
-3. One dyad round at Tier 3 — connection or homework?
+1. Networking smoke test on venue wifi *and* a phone hotspot — if flaky, lead with
+   local mode.
+2. One distributed round end-to-end under two minutes; watch whether the auto-dim
+   actually pulls eyes up.
+3. One two-player local round at Tier 3 — connection or homework?
 4. One invisible burn, one ballot.
 5. Read 20 random probes aloud to someone from the target crowd; cut flat ones.

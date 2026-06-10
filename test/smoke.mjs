@@ -66,6 +66,7 @@ try {
   alice.act('start');
 
   const all = [alice, ...others];
+  const flavors = [];
   const playRound = async (expectTutorial) => {
     const s = await alice.waitPhase('preview');
     const subjId = s.subjectId;
@@ -98,6 +99,7 @@ try {
 
     subject.act('confirmTruth');
     const ts = await preds[0].waitPhase('truth');
+    if (ts.flavor) flavors.push(ts.flavor);
     if (!expectTutorial) {
       const me = ts.roundPts.find(r => r.pid === preds[0].pid);
       const k = (probe.options && probe.options.length > 2) ? probe.options.length : 2;
@@ -107,7 +109,8 @@ try {
     }
     await alice.waitPhase('debrief');
     alice.act('endDebrief'); // anyone can flip their phone and end it early
-    await alice.waitPhase('reply', 10000);
+    const rs = await alice.waitPhase('reply', 10000);
+    assert(rs.phaseEndsAt !== null, 'reply entered via endDebrief still has a timer');
     subject.act('endReply');
   };
 
@@ -121,6 +124,8 @@ try {
   all.forEach(c => c.act('vote', { v: 'deepen' }));
   const br = await alice.waitPhase('ballotResult', 10000);
   assert(br.ballotOutcome.dir === 'deepen' && br.ballotOutcome.tier === 2, 'unanimous deepen → tier 2');
+  assert(!!br.interim?.oracle, `interim superlatives at the rotation beat: ${br.interim?.oracle}`);
+  assert(flavors.length > 0, `round flavor lines fired: "${flavors[0]}"`);
 
   // …then straight to the end card, with awards despite the short session
   const st = await alice.waitPhase('stats', 15000);

@@ -69,4 +69,9 @@ export async function keepAwake() {
 }
 
 export const TIER_NAMES = { 0: 'Tutorial', 1: 'Surface', 2: 'Character', 3: 'Skin', 4: 'Confession', 5: 'Vault' };
+export const TIER_TAGLINES = {
+  1: 'being read is funny', 2: 'being read is interesting', 3: 'being read is exposing',
+  4: 'being read is intimate', 5: 'being read is profound',
+};
 export function tierLabel(t) { return t === 0 ? 'Warm-up' : `Tier ${t} · ${TIER_NAMES[t] || ''}`; }
+export function tierTagline(t) { return TIER_TAGLINES[t] || ''; }

@@ -46,6 +46,7 @@ export function statsCard(st, { calibration = null, title = 'the box opens' } = 
     <p class="kicker center">scores</p>
     <div class="grid">${totals}</div>
     ${calib}
+    <p class="muted small center">screenshot this — it's yours</p>
   `;
 }
 

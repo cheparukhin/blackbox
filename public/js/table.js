@@ -2,7 +2,7 @@
 // state into the choreography: buzz on commit, 3-2-1 sting, grid, auto-dim
 // "look up", face-down debrief, anonymous ballots.
 
-import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel } from './util.js';
+import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, tierTagline, TIER_NAMES } from './util.js';
 import { CONF, CONF_ORDER } from './scoring.js';
 import * as audio from './audio.js';
 import { getName, setName, recordCalibration, saveSession, getCalibration } from './storage.js';
@@ -133,19 +133,20 @@ const SCREENS = {
 
   preview(s) {
     if (s.you?.isSubject && s.probe) {
+      const total = Math.max(1, (s.phaseEndsAt - s.phaseStartedAt) / 1000);
       const left = secsLeft(s.phaseEndsAt, offset);
       render(`
         <p class="kicker">${tierLabel(s.probe.tier)} · your eyes only</p>
         <p class="probe-text">${esc(probeText(s.probe.text, s.you.name))}</p>
         <p class="muted small">Keep it, or burn it — nobody will ever know.</p>
-        ${timerBar((left ?? 0) / 8)}
+        ${timerBar((left ?? 0) / total)}
         <div class="btn-row">
           <button data-a="burn">Burn</button>
           <button class="primary" data-a="keep">Keep it</button>
         </div>
       `);
       bind({ burn: () => act('burn'), keep: () => act('keep') });
-      everyFrame(() => { if (lastState?.phase === 'preview') paintBarOnly(s, 8); });
+      everyFrame(() => { if (lastState?.phase === 'preview') paintBarOnly(total); });
     } else {
       deadScreen('drawing…', s);
     }
@@ -176,7 +177,7 @@ const SCREENS = {
       const n = 3 - Math.floor(elapsed / 1000);
       cue('c' + n, audio.tick);
       render(`<div class="countdown-huge">${n}</div>`, 'dead');
-    } else if (elapsed < 3000 + 6000 || nowS() < peekUntil) {
+    } else if (elapsed < 3000 + 7000 || nowS() < peekUntil) {
       cue('sting', audio.sting);
       revealGrid(s);
     } else {
@@ -188,15 +189,17 @@ const SCREENS = {
   truth(s) {
     const mine = s.roundPts?.find(r => r.pid === myPid);
     const tutorial = s.probe?.tutorial;
+    const scored = (s.roundPts || []).filter(r => !r.auto && r.correct !== null);
+    const hits = scored.filter(r => r.correct).length;
     render(`
       <p class="kicker center">the truth</p>
       <div class="truth-big">${esc(s.truth)}</div>
       ${tutorial ? `<p class="muted center">Warm-up round — no points.</p>` : mine ? `
         <div class="pts-huge ${mine.correct ? 'good' : ''}">+${mine.pts}</div>
         <p class="muted center small">${mine.auto ? 'Timed out — auto-pass.' : mine.correct ? 'Read.' : 'Missed.'}</p>` : `
-        <div class="grid">${(s.roundPts || []).map(r => `
-          <div class="grid-row"><span class="name">${esc(r.name)}</span><span class="muted">+${r.pts}</span></div>`).join('')}
-        </div>`}
+        <div class="pts-huge ${hits > scored.length / 2 ? 'good' : ''}">${hits}/${scored.length}</div>
+        <p class="muted center small">read you right</p>`}
+      ${s.flavor && !tutorial ? `<p class="split-flag">${esc(s.flavor)}</p>` : ''}
     `);
   },
 
@@ -237,6 +240,12 @@ const SCREENS = {
         <button class="primary" data-a="done">Done — next round</button>
       `);
       bind({ more: () => act('extendReply'), done: () => act('endReply') });
+    } else if (s.subjectConnected === false) {
+      render(`
+        <div class="dead-hint">${esc(s.subjectName)} gets the last word</div>
+        <button class="ghost" data-a="next">${esc(s.subjectName)} dropped — next round</button>
+      `, 'dead');
+      bind({ next: () => act('endReply') });
     } else {
       deadScreen(`${s.subjectName} gets the last word`, s);
     }
@@ -246,10 +255,11 @@ const SCREENS = {
     if (s.you?.voted) return deadScreen('ballot’s in', s);
     render(`
       <p class="kicker center">secret ballot</p>
-      <p class="center">The table is at <b>${tierLabel(s.tier)}</b>.</p>
-      <button class="primary" data-a="v" data-v="deepen">Deepen</button>
-      <button data-a="v" data-v="stay">Stay</button>
-      <button data-a="v" data-v="retreat">Retreat</button>
+      <p class="center">The table is at <b>${tierLabel(s.tier)}</b><br>
+        <span class="muted small">${esc(tierTagline(s.tier))}</span></p>
+      <button class="primary" data-a="v" data-v="deepen">Deepen${s.tier >= 4 ? ' · past Tier 4' : ` · ${TIER_NAMES[s.tier + 1]}`}</button>
+      <button data-a="v" data-v="stay">Stay · ${TIER_NAMES[s.tier]}</button>
+      <button data-a="v" data-v="retreat">Retreat${s.tier > 1 ? ` · ${TIER_NAMES[s.tier - 1]}` : ''}</button>
       <p class="ballot-note">Nobody ever sees votes or counts — only the outcome.</p>
     `);
     bind({ v: d => act('vote', { v: d.v }) });
@@ -260,7 +270,7 @@ const SCREENS = {
     const line = o.dir === 'deepen' ? `The table deepens to <b>${tierLabel(o.tier)}</b>.`
       : o.dir === 'retreat' ? `The table eases back to <b>${tierLabel(o.tier)}</b>.`
       : `The table stays at <b>${tierLabel(o.tier)}</b>.`;
-    render(`<p class="lookup-msg">${line}</p>`, 'dead');
+    render(`<p class="lookup-msg">${line}</p>${interimLine(s)}`, 'dead');
   },
 
   splinter(s) {
@@ -268,6 +278,7 @@ const SCREENS = {
       <p class="kicker center">past tier 4</p>
       <p class="lookup-msg">This is pair territory.<br>Find a corner.</p>
       <p class="muted center small">Two people, one phone, no room needed — Local mode from the home screen goes to Tier 5.</p>
+      ${interimLine(s)}
       <button data-a="back">Back to the table · Tier 4</button>
     `);
     bind({ back: () => act('splinterAck') });
@@ -332,10 +343,21 @@ function commitSubject(s, left) {
 }
 
 function lockScreen(s, note = '') {
+  const c = s.you?.commit;
   render(`
     <div class="dead-big">${s.lockCount ?? 0}/${s.predictorCount} in</div>
-    <p class="dead-hint">${esc(note) || 'locked · phones down'}</p>
+    <p class="dead-hint">${esc(note) || (c ? `you called ${esc(c.answer)} · ${CONF[c.conf]?.label || ''}` : 'locked · phones down')}</p>
   `, 'dead');
+}
+
+function interimLine(s) {
+  const i = s.interim;
+  if (!i) return '';
+  const parts = [];
+  if (i.oracle) parts.push(`best reader: ${esc(i.oracle)}`);
+  if (i.openBook) parts.push(`open book: ${esc(i.openBook)}`);
+  if (i.enigma) parts.push(`hardest to read: ${esc(i.enigma)}`);
+  return parts.length ? `<p class="muted center small">So far — ${parts.join(' · ')}</p>` : '';
 }
 
 // ---------- reveal sub-screens ----------
@@ -410,7 +432,7 @@ function skipButton(s) {
   return '';
 }
 
-function paintBarOnly(s, total) {
+function paintBarOnly(total) {
   const left = secsLeft(lastState?.phaseEndsAt, offset);
   const fill = document.querySelector('.bar-fill');
   if (fill && left !== null) fill.style.width = `${(left / total) * 100}%`;
