@@ -33,6 +33,9 @@ function setup() {
       <div class="player-list">${S.players.map(p => `<div class="player-row"><span>${esc(p.name)}</span></div>`).join('')}</div>
       <input type="text" id="nm" placeholder="First name" maxlength="16" autocomplete="off" enterkeyhint="next">
       ${msg ? `<p class="small" style="color:var(--bad)">${esc(msg)}</p>` : ''}
+      <label class="num-label">Rounds
+        <input type="number" id="rounds" min="1" max="50" inputmode="numeric" placeholder="auto" value="${esc(S.roundsChoice ?? '')}">
+      </label>
       <div class="btn-row">
         <button data-a="add">Add player</button>
         <button class="primary" data-a="go">Start</button>
@@ -42,7 +45,9 @@ function setup() {
     `);
     // typing a name and hitting Start (or return) just works — no separate Add step
     const nm = document.querySelector('#nm');
+    const keepRounds = () => { S.roundsChoice = document.querySelector('#rounds')?.value ?? S.roundsChoice; };
     const absorb = () => {
+      keepRounds(); // survive the re-render
       const n = nm.value.trim();
       if (!n) return true;
       if (S.players.some(p => p.name.toLowerCase() === n.toLowerCase())) { paint('Names must differ.'); return false; }
@@ -59,7 +64,8 @@ function setup() {
         if (S.players.length < 2) return paint('Add at least two players.');
         audio.unlock();
         S.n = S.players.length;
-        S.roundsTotal = S.n <= 2 ? 10 : 2 * S.n;
+        const r = Math.round(Number(S.roundsChoice));
+        S.roundsTotal = Number.isFinite(r) && r >= 1 ? Math.min(50, r) : (S.n <= 2 ? 10 : 2 * S.n);
         S.ballotEvery = S.n <= 2 ? 3 : S.n;
         S.deckMode = S.n <= 2 ? 'dyad' : 'table';
         startRound();

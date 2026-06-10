@@ -70,7 +70,6 @@ const PACE = {
   demo: { preview: 5, probe: 20, truth: 3, ballot: 15, commit: 10, debrief: 25 },
 };
 const DEFAULT_ROUNDS = Number(process.env.BB_ROUNDS) || 12;
-const ROUND_CHOICES = [4, 6, 8, 12, 16, 20];
 const tm = room => PACE[room.settings.pace] || PACE.standard;
 
 function newCode() {
@@ -263,7 +262,8 @@ function handleAction(room, pid, a, d = {}) {
   switch (a) {
     case 'settings':
       if (room.phase === 'lobby' && isCreator) {
-        if (ROUND_CHOICES.includes(d.rounds)) { room.settings.rounds = d.rounds; room.roundsTotal = d.rounds; }
+        const r = Math.round(Number(d.rounds));
+        if (Number.isFinite(r) && r >= 1) { room.settings.rounds = Math.min(50, r); room.roundsTotal = room.settings.rounds; }
         if (['standard', 'demo'].includes(d.pace)) room.settings.pace = d.pace;
         broadcast(room);
       }

@@ -139,6 +139,19 @@ textarea { min-height: 90px; resize: none; }
 .scale-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .scale-row button { min-height: 52px; padding: 10px 0; font-size: 20px; }
 
+/* ----- numeric setting field ----- */
+.num-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 0 14px; color: var(--dim); font-weight: 600; font-size: 16px; flex: 1;
+}
+.num-label input {
+  border: none; background: transparent; width: 64px; min-height: 54px;
+  font-size: 19px; font-weight: 700; text-align: center; color: var(--ink);
+  padding: 0; border-radius: 0;
+}
+.num-label input:focus { outline: none; }
+
 /* ----- settings ----- */
 .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .setting-row:last-child { border-bottom: none; }

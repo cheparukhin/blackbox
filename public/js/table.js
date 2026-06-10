@@ -125,18 +125,26 @@ const SCREENS = {
       </div>
       ${isCreator ? `
         <div class="btn-row">
-          <button class="ghost" data-a="rounds">${s.settings.rounds} rounds</button>
+          <label class="num-label">Rounds
+            <input type="number" id="rounds" min="1" max="50" inputmode="numeric" value="${s.settings.rounds}">
+          </label>
           <button class="ghost" data-a="pace">${s.settings.pace === 'demo' ? '⚡ demo pace' : 'standard pace'}</button>
         </div>
         <button class="primary" data-a="start" ${s.players.length < 2 ? 'disabled' : ''}>${s.players.length < 2 ? 'Need 2+ players' : 'Start'}</button>`
         : `<p class="muted center small">${s.settings.rounds} rounds · ${esc(s.settings.pace)} pace — waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
       <button class="ghost" data-a="stage">Use this device as a big screen</button>
     `);
-    const ROUNDS = [4, 6, 8, 12, 16, 20];
+    document.querySelector('#rounds')?.addEventListener('change', e => {
+      const r = Math.round(Number(e.target.value));
+      if (Number.isFinite(r) && r >= 1) act('settings', { rounds: r });
+    });
     bind({
-      start: () => act('start'),
+      start: () => {
+        const r = Math.round(Number(document.querySelector('#rounds')?.value));
+        if (Number.isFinite(r) && r >= 1 && r !== s.settings.rounds) act('settings', { rounds: r });
+        act('start');
+      },
       stage: () => { location.href = `/?room=${s.code}&stage=1`; },
-      rounds: () => act('settings', { rounds: ROUNDS[(ROUNDS.indexOf(s.settings.rounds) + 1) % ROUNDS.length] }),
       pace: () => act('settings', { pace: s.settings.pace === 'demo' ? 'standard' : 'demo' }),
     });
   },
