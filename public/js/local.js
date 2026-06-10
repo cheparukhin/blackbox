@@ -13,7 +13,7 @@ import { loadDeck, draw } from './deck.js';
 import * as audio from './audio.js';
 import { recordCalibration, saveSession, getCalibration } from './storage.js';
 
-const DEBRIEF_SEC = 75, REPLY_SEC = 30;
+const DEBRIEF_SEC = 90;
 
 let S = null, deck = null, onExit = null;
 
@@ -246,36 +246,22 @@ function recordRound(scored) {
 function debriefScreen() {
   const endsAt = { t: Date.now() + DEBRIEF_SEC * 1000 };
   let done = false;
-  const finish = () => { if (done) return; done = true; clearTickers(); audio.chime(); replyScreen(); };
+  const finish = () => { if (done) return; done = true; clearTickers(); audio.chime(); nextOrBallot(); };
+  const hint = `what made you guess that? · ${subject().name} gets the last word`;
   render(`
     <p class="dead-hint">“I noticed…” · “I imagined you as someone who…”</p>
     <div class="dead-big">TALK</div>
-    <p class="dead-hint" id="dleft">${DEBRIEF_SEC}s · what made you guess that?</p>
+    <p class="dead-hint" id="dleft">${DEBRIEF_SEC}s · ${esc(hint)}</p>
     <div class="btn-row">
-      <button class="ghost" data-a="ext">+30s</button>
-      <button class="ghost" data-a="end">End early</button>
+      <button class="ghost" data-a="ext">+30s — still talking</button>
+      <button class="ghost" data-a="end">Next round</button>
     </div>
   `, 'dead facedown');
   bind({ ext: () => { endsAt.t += 30_000; }, end: finish });
   everyFrame(() => {
     if (Date.now() >= endsAt.t) finish();
-    else { const h = document.querySelector('#dleft'); if (h) h.textContent = `${Math.ceil((endsAt.t - Date.now()) / 1000)}s · what made you guess that?`; }
+    else { const h = document.querySelector('#dleft'); if (h) h.textContent = `${Math.ceil((endsAt.t - Date.now()) / 1000)}s · ${hint}`; }
   }, 500);
-}
-
-function replyScreen() {
-  clearTickers();
-  const endsAt = { t: Date.now() + REPLY_SEC * 1000 };
-  let done = false;
-  const finish = () => { if (done) return; done = true; clearTickers(); nextOrBallot(); };
-  render(`
-    <p class="kicker">${esc(subject().name)} — the last word is yours</p>
-    <p class="muted">Did they get you right? Correct anything before the next round.</p>
-    <button class="ghost" data-a="more">“It's more complicated” · talk 60s more</button>
-    <button class="primary" data-a="done">Next round</button>
-  `);
-  bind({ more: () => { endsAt.t += 60_000; }, done: finish });
-  everyFrame(() => { if (Date.now() >= endsAt.t) finish(); }, 500);
 }
 
 function nextOrBallot() {

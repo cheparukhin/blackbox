@@ -79,13 +79,10 @@ const VIEWS = {
   debrief(s) {
     const left = secsLeft(s.phaseEndsAt, offset);
     render(`
-      <p class="kicker">talk — what made you guess that?</p>
+      <p class="kicker">talk — what made you guess that? · ${esc(s.subjectName)} gets the last word</p>
       <div class="countdown-huge" style="font-size:14vw">${left ?? ''}</div>
     `, 'stage');
     everyFrame(() => { if (last?.phase === 'debrief') VIEWS.debrief(last); }, 1000);
-  },
-  reply(s) {
-    render(`<p class="lookup-msg">${esc(s.subjectName)} gets the last word.</p>`, 'stage dead');
   },
   ballot(s) {
     render(`<p class="lookup-msg">Secret vote on your phones:</p><p class="kicker">how deep should the questions go?</p>`, 'stage dead');

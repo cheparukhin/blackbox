@@ -60,9 +60,8 @@ const PACE = {
     preview: 10, probe: 30, truth: 5, ballot: 25,
     commit: Number(process.env.BB_COMMIT_SEC) || 15,
     debrief: Number(process.env.BB_DEBRIEF_SEC) || 90,
-    reply: Number(process.env.BB_REPLY_SEC) || 30,
   },
-  demo: { preview: 5, probe: 20, truth: 3, ballot: 15, commit: 10, debrief: 25, reply: 10 },
+  demo: { preview: 5, probe: 20, truth: 3, ballot: 15, commit: 10, debrief: 25 },
 };
 const DEFAULT_ROUNDS = Number(process.env.BB_ROUNDS) || 12;
 const ROUND_CHOICES = [4, 6, 8, 12, 16, 20];
@@ -146,8 +145,7 @@ function onTimeout(room) {
     case 'reveal': // subject vanished mid-reveal: score if truth is in, otherwise skip
       if (room.truth !== null) confirmTruth(room); else abandonRound(room); break;
     case 'truth': setPhase(room, 'debrief', tm(room).debrief); break;
-    case 'debrief': setPhase(room, 'reply', tm(room).reply); break;
-    case 'reply': endRound(room); break;
+    case 'debrief': endRound(room); break;
     case 'ballot': resolveBallot(room); break;
     case 'ballotResult': afterBallot(room); break;
   }
@@ -310,22 +308,11 @@ function handleAction(room, pid, a, d = {}) {
       if (room.phase === 'reveal' && isSubject) confirmTruth(room);
       break;
     case 'endDebrief':
-      if (room.phase === 'debrief') setPhase(room, 'reply', tm(room).reply);
+      if (room.phase === 'debrief') endRound(room);
       break;
     case 'extendDebrief':
       if (room.phase === 'debrief' && room.phaseEndsAt) {
         room.phaseEndsAt += 30_000;
-        clearTimeout(room.timer);
-        room.timer = setTimeout(() => onTimeout(room), room.phaseEndsAt - Date.now() + 60);
-        broadcast(room);
-      }
-      break;
-    case 'endReply':
-      if (room.phase === 'reply') endRound(room);
-      break;
-    case 'extendReply': // "it's more complicated" — never affects scores
-      if (room.phase === 'reply' && isSubject && room.phaseEndsAt) {
-        room.phaseEndsAt += 60_000;
         clearTimeout(room.timer);
         room.timer = setTimeout(() => onTimeout(room), room.phaseEndsAt - Date.now() + 60);
         broadcast(room);
@@ -354,8 +341,8 @@ function handleAction(room, pid, a, d = {}) {
 }
 
 // ---------- per-client views ----------
-const PROBE_PHASES = ['probe', 'commit', 'reveal', 'truth', 'debrief', 'reply'];
-const COMMIT_PHASES = ['reveal', 'truth', 'debrief', 'reply'];
+const PROBE_PHASES = ['probe', 'commit', 'reveal', 'truth', 'debrief'];
+const COMMIT_PHASES = ['reveal', 'truth', 'debrief'];
 
 function stateFor(room, pid) {
   const me = room.players.find(p => p.id === pid) || null;
@@ -363,7 +350,7 @@ function stateFor(room, pid) {
   const isSubject = !!me && subj?.id === pid;
   const showProbe = PROBE_PHASES.includes(room.phase) || (room.phase === 'preview' && isSubject);
   const showCommits = COMMIT_PHASES.includes(room.phase);
-  const showTruth = room.truthConfirmed && ['truth', 'debrief', 'reply'].includes(room.phase);
+  const showTruth = room.truthConfirmed && ['truth', 'debrief'].includes(room.phase);
   const myCommit = me ? room.commits.get(pid) : null;
 
   return {

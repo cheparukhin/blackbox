@@ -92,7 +92,7 @@ function paint(s) {
 
 function onTransition(from, to, s) {
   if (to === 'commit') { audio.buzz(); flashScreen(); }
-  if (from === 'debrief' && to === 'reply') audio.chime(); // cap needs an end signal, not a watched countdown
+  if (from === 'debrief') audio.chime(); // cap needs an end signal, not a watched countdown
   if (to === 'stats') harvestStats(s);
 }
 
@@ -207,7 +207,7 @@ const SCREENS = {
     if (!debriefTools) {
       render(`
         <div class="dead-big">PHONES<br>FACE DOWN</div>
-        <p class="dead-hint">talk — what made you guess that? whoever guessed differently goes first</p>
+        <p class="dead-hint">talk — what made you guess that?<br>whoever guessed differently goes first · ${esc(s.subjectName)} gets the last word</p>
       `, 'dead facedown');
       document.querySelector('#app').onclick = () => { debriefTools = true; SCREENS.debrief(lastState); };
       return;
@@ -218,8 +218,8 @@ const SCREENS = {
       <p class="dead-hint">“I noticed…”<br>“I imagined you as someone who…”</p>
       <p class="dead-hint">${left ?? ''}s</p>
       <div class="btn-row">
-        <button class="ghost" data-a="ext">+30s</button>
-        <button class="ghost" data-a="end">End debrief</button>
+        <button class="ghost" data-a="ext">+30s — still talking</button>
+        <button class="ghost" data-a="end">Next round</button>
       </div>
       <button class="ghost" data-a="down">back face down</button>
     `, 'dead facedown');
@@ -229,26 +229,6 @@ const SCREENS = {
       down: () => { debriefTools = false; SCREENS.debrief(lastState); },
     });
     everyFrame(() => { if (lastState?.phase === 'debrief' && debriefTools) SCREENS.debrief(lastState); }, 1000);
-  },
-
-  reply(s) {
-    if (s.you?.isSubject) {
-      render(`
-        <p class="kicker">the last word is yours</p>
-        <p class="muted">Did they get you right? Correct anything before the next round.</p>
-        <button class="ghost" data-a="more">“It's more complicated” · talk 60s more</button>
-        <button class="primary" data-a="done">Done — next round</button>
-      `);
-      bind({ more: () => act('extendReply'), done: () => act('endReply') });
-    } else if (s.subjectConnected === false) {
-      render(`
-        <div class="dead-hint">${esc(s.subjectName)} gets the last word</div>
-        <button class="ghost" data-a="next">${esc(s.subjectName)} dropped — next round</button>
-      `, 'dead');
-      bind({ next: () => act('endReply') });
-    } else {
-      deadScreen(`${s.subjectName} gets the last word`, s);
-    }
   },
 
   ballot(s) {

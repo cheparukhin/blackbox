@@ -15,7 +15,7 @@ const assert = (cond, msg) => {
 };
 
 const server = spawn(process.execPath, ['server.js'], {
-  env: { ...process.env, PORT, BB_COMMIT_SEC: '5', BB_DEBRIEF_SEC: '2', BB_REPLY_SEC: '1' },
+  env: { ...process.env, PORT, BB_COMMIT_SEC: '5', BB_DEBRIEF_SEC: '2' },
   stdio: 'ignore',
 });
 await new Promise(r => setTimeout(r, 600));
@@ -107,11 +107,9 @@ try {
       const wrong = ts.roundPts.find(r => r.pid === preds[1].pid);
       assert(wrong.pts === scoreChoice('lean', false, k), `lean miss scores ${wrong.pts}`);
     }
-    await alice.waitPhase('debrief');
+    const ds = await alice.waitPhase('debrief');
+    assert(ds.phaseEndsAt !== null, 'debrief has a timer');
     alice.act('endDebrief'); // anyone can flip their phone and end it early
-    const rs = await alice.waitPhase('reply', 10000);
-    assert(rs.phaseEndsAt !== null, 'reply entered via endDebrief still has a timer');
-    subject.act('endReply');
   };
 
   await playRound(true);   // tutorial

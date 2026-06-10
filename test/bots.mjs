@@ -64,8 +64,6 @@ function react(bot) {
     once(bot, key, 11000, () => act(bot, 'confirmTruth'));
   } else if (s.phase === 'debrief') {
     if (me.isCreator) once(bot, key, 10000, () => act(bot, 'endDebrief'));
-  } else if (s.phase === 'reply' && me.isSubject) {
-    once(bot, key, 4000, () => act(bot, 'endReply'));
   } else if (s.phase === 'ballot' && !me.voted) {
     once(bot, key, 2000 + Math.random() * 2000, () => act(bot, 'vote', { v: Math.random() < 0.7 ? 'deepen' : 'stay' }));
   } else if (s.phase === 'splinter' && me.isCreator) {
