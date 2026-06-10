@@ -2,7 +2,8 @@
 
 Mobile-first web app for the in-person social game in [black-box-spec.md](black-box-spec.md):
 score points by demonstrating you understand the person in front of you. One scoring
-engine (a strictly proper, all-positive Brier transform), two modes:
+engine (a strictly proper, zero-centered Brier transform: Pass = 0, right answers
+gain, wrong answers lose), two modes:
 
 - **Distributed (everyone's phone, 2+)** — ephemeral 4-char rooms over a tiny
   WebSocket relay. Every phone mirrors the one server-side state machine; the server

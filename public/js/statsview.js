@@ -1,6 +1,6 @@
 // End screen — built to be screenshotted. Shared by table, dyad, and stage.
 
-import { esc } from './util.js';
+import { esc, fmtPts } from './util.js';
 import { CONF } from './scoring.js';
 
 const pct = x => `${Math.round(x * 100)}%`;
@@ -10,7 +10,7 @@ export function statsCard(st, { calibration = null, title = 'the results' } = {}
   const awards = [];
 
   if (st.oracle) awards.push(award('Oracle — best at reading people', st.oracle.name,
-    st.simpleMode ? `${st.oracle.correct} right guesses` : `${st.oracle.avg} points per guess, over ${st.oracle.n} guesses`));
+    st.simpleMode ? `${st.oracle.correct} right guesses` : `${fmtPts(st.oracle.avg)} points per guess, over ${st.oracle.n} guesses`));
   if (st.openBook) awards.push(award('Open Book — easiest to read', st.openBook.name,
     `the others guessed them right ${pct(st.openBook.rate)} of the time`));
   if (st.enigma && st.enigma.pid !== st.openBook?.pid) awards.push(award('Enigma — hardest to read', st.enigma.name,
@@ -28,7 +28,7 @@ export function statsCard(st, { calibration = null, title = 'the results' } = {}
   }).join('');
 
   const totals = (st.totals || []).filter(t => t.n > 0).sort((a, b) => st.simpleMode ? b.correct - a.correct : b.avg - a.avg)
-    .map(t => `<div class="grid-row"><span class="name">${esc(t.name)}</span><span>${st.simpleMode ? `${t.correct}/${t.scored} correct` : `${t.avg} avg · ${t.total} total`}</span></div>`).join('');
+    .map(t => `<div class="grid-row"><span class="name">${esc(t.name)}</span><span>${st.simpleMode ? `${t.correct}/${t.scored} correct` : `${fmtPts(t.total)} total · ${fmtPts(t.avg)} per guess`}</span></div>`).join('');
 
   let calib = '';
   if (calibration && Object.keys(calibration).length) {

@@ -54,6 +54,8 @@ export function secsLeft(endsAt, offset = 0) {
   return Math.max(0, Math.ceil((endsAt - (Date.now() + offset)) / 1000));
 }
 
+export const fmtPts = n => (n > 0 ? '+' : '') + n;
+
 export function timerBar(frac) {
   return `<div class="bar"><div class="bar-fill" style="width:${Math.max(0, Math.min(100, frac * 100))}%"></div></div>`;
 }
@@ -77,7 +79,7 @@ export function confButtons(probe) {
   return CONF_ORDER.map(c => {
     const pc = Math.round(CONF[c].p * 100);
     const win = scoreChoice(c, true, k), lose = scoreChoice(c, false, k);
-    const pts = win === lose ? `+${win} either way` : `right +${win} · wrong +${lose}`;
+    const pts = win === lose ? `${fmtPts(win)} either way` : `right ${fmtPts(win)} · wrong ${fmtPts(lose)}`;
     return `<button class="conf-btn" data-a="conf" data-c="${c}"
       style="background:linear-gradient(90deg, rgba(255,180,84,.12) ${pc}%, var(--panel) ${pc}%)">
       <span>${CONF[c].label} · ${pc}%</span><span class="conf-pts">${pts}</span></button>`;

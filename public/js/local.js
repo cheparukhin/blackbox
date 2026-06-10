@@ -5,7 +5,7 @@
 // probes; bigger groups play the table deck — relational probes included —
 // capped at Tier 4.
 
-import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, tierTagline, TIER_NAMES, confButtons } from './util.js';
+import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, tierTagline, TIER_NAMES, confButtons, fmtPts } from './util.js';
 import { CONF, scoreChoice, scoreScale, GRADES, GRADE_ORDER } from './scoring.js';
 import { computeStats, roundFlavor, interimStats } from './stats.js';
 import { statsCard } from './statsview.js';
@@ -29,11 +29,14 @@ function setup() {
   const paint = (msg = '') => {
     render(`
       <p class="kicker">one phone · pass it around</p>
-      <p class="muted small">Who's playing? Type a name, press return, repeat.</p>
+      <p class="muted small">Who's playing? Add everyone, then Start. (A name left in the box counts too.)</p>
       <div class="player-list">${S.players.map(p => `<div class="player-row"><span>${esc(p.name)}</span></div>`).join('')}</div>
-      <input type="text" id="nm" placeholder="First name" maxlength="16" autocomplete="off" enterkeyhint="done">
+      <input type="text" id="nm" placeholder="First name" maxlength="16" autocomplete="off" enterkeyhint="next">
       ${msg ? `<p class="small" style="color:var(--bad)">${esc(msg)}</p>` : ''}
-      <button class="primary" data-a="go">Start</button>
+      <div class="btn-row">
+        <button data-a="add">Add player</button>
+        <button class="primary" data-a="go">Start</button>
+      </div>
       <p class="muted small center">${S.players.length === 2 ? 'Two players — the questions can go all the way to the Vault.' : S.players.length > 2 ? 'Group game — the questions go up to Confession.' : 'Two players go deepest; any number works.'}</p>
       <button class="ghost" data-a="back">Back</button>
     `);
@@ -50,6 +53,7 @@ function setup() {
     nm.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); absorb(); } });
     bind({
       back: () => onExit(),
+      add: () => absorb(),
       go: () => {
         if (!absorb()) return;
         if (S.players.length < 2) return paint('Add at least two players.');
@@ -195,10 +199,10 @@ function revealScreen() {
       <div class="panel"><p class="small muted">${esc(pred.name)} guessed:</p><p>${esc(pred.text)}</p></div>
       <div class="panel"><p class="small muted">${esc(subject().name)} really answered:</p><p>${esc(S.truth.text)}</p></div>
       <p class="kicker center">${esc(subject().name)} — how close was the guess?</p>
-      <div class="conf-row">${GRADE_ORDER.map(g => `<button data-a="g" data-g="${g}">${g[0].toUpperCase() + g.slice(1)} · ${GRADES[g]}</button>`).join('')}</div>
+      <div class="conf-row">${GRADE_ORDER.map(g => `<button data-a="g" data-g="${g}">${g[0].toUpperCase() + g.slice(1)} · ${fmtPts(GRADES[g])}</button>`).join('')}</div>
     `);
     bind({ g: d => {
-      recordRound([{ ...pred, answer: pred.text, conf: null, p: null, correct: GRADES[d.g] >= 75, pts: GRADES[d.g] }]);
+      recordRound([{ ...pred, answer: pred.text, conf: null, p: null, correct: d.g === 'hot' || d.g === 'exact', pts: GRADES[d.g] }]);
       debriefScreen();
     } });
     return;
@@ -225,7 +229,7 @@ function revealScreen() {
         <div class="grid-row ${c.correct ? 'hit' : 'miss'}">
           <span class="name">${c.correct ? '✓' : '✗'} ${esc(c.name)}</span>
           <span class="ans">${esc(c.answer)}</span>
-          <span class="conf">${[c.conf && CONF[c.conf].label, S.round > 0 && '+' + c.pts + ' pts'].filter(Boolean).join(' · ')}</span>
+          <span class="conf">${[c.conf && CONF[c.conf].label, S.round > 0 && fmtPts(c.pts) + ' pts'].filter(Boolean).join(' · ')}</span>
         </div>`).join('')}
     </div>
     ${S.round === 0 ? '<p class="muted center">Warm-up round — no points yet.</p>' : ''}

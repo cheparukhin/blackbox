@@ -1,6 +1,9 @@
-// BLACK BOX scoring engine — one engine for both modes. Spec §6, implement exactly:
-// points = round(100 × (1 − (1 − q)²)) where q is the probability the predictor's
-// choice assigned to the true outcome. Affine transform of the Brier score → strictly proper.
+// BLACK BOX scoring engine — one engine for both modes.
+// points = round(100 × (1 − (1 − q)²)) − 75, where q is the probability the
+// predictor's choice assigned to the true outcome. Affine transform of the
+// Brier score → strictly proper: your honest confidence is always the
+// expected-points-maximizing button. Zero-centered so a coin-flip claim
+// (Pass on a binary) scores 0 and wrong answers visibly lose points.
 
 export const CONF = {
   pass:     { label: 'Pass',      p: 0.50 },
@@ -10,8 +13,10 @@ export const CONF = {
 };
 export const CONF_ORDER = ['pass', 'lean', 'confident', 'damnsure'];
 
+const BASE = 75; // raw score of a 50% claim — subtracted so "no idea" = 0
+
 export function points(q) {
-  return Math.round(100 * (1 - (1 - q) ** 2));
+  return Math.round(100 * (1 - (1 - q) ** 2)) - BASE;
 }
 
 // q for a discrete choice: binary → q = p if right, 1−p if wrong.
@@ -27,18 +32,20 @@ export function scoreChoice(confKey, correct, k = 2) {
   return points(qFor(conf.p, correct, k));
 }
 
-// Timeout auto-Pass = abstain at the uniform distribution over k options.
-export function scoreAbstain(k = 2) {
-  return points(1 / k);
+// Timeout = no claim made = no points either way.
+export function scoreAbstain() {
+  return 0;
 }
 
-// Scale probes (1–10, dyad only): no confidence button.
+// Scale probes (1–10, two-player local only): no confidence button.
+// Dead on = +25 (a Damn Sure hit), one off still gains, far off loses.
 export function scoreScale(guess, truth) {
-  return Math.max(10, 100 - 15 * Math.abs(guess - truth));
+  return Math.max(-65, 25 - 15 * Math.abs(guess - truth));
 }
 
-// Tier 5 free-form: subject grades.
-export const GRADES = { cold: 10, warm: 40, hot: 75, exact: 100 };
+// Tier 5 free-form: subject grades the guess; never negative — by the Vault
+// the scoreboard has done its job.
+export const GRADES = { cold: 0, warm: 10, hot: 18, exact: 25 };
 export const GRADE_ORDER = ['cold', 'warm', 'hot', 'exact'];
 
 export function optionCount(probe) {

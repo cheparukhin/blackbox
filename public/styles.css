@@ -127,6 +127,7 @@ button:disabled { opacity: 0.4; pointer-events: none; }
 
 .pts-huge { font-size: 64px; font-weight: 800; text-align: center; }
 .pts-huge.good { color: var(--good); }
+.pts-huge.bad { color: var(--bad); }
 .truth-big { font-family: Georgia, serif; font-size: 40px; text-align: center; font-weight: 700; }
 
 /* ----- inputs ----- */

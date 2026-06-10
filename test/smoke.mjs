@@ -131,7 +131,7 @@ try {
   assert(!!st.statsData.oracle, `Oracle awarded: ${st.statsData.oracle?.name}`);
   assert(!!st.statsData.boldest, `Boldest Call awarded: ${st.statsData.boldest?.name}`);
   assert(!!st.statsData.openBook, `Open Book shown: ${st.statsData.openBook?.name}`);
-  assert(st.statsData.totals.every(t => t.n > 0 ? t.total > 0 : true), 'every player has points');
+  assert(st.statsData.totals.every(t => Number.isFinite(t.total)), 'every player has a score (zero-centered scale)');
   assert(Array.isArray(st.history) && st.history.length === 4, 'history carries 4 scored rounds');
 
   log(failed ? 'SMOKE FAILED' : 'SMOKE PASSED');

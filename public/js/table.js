@@ -2,7 +2,7 @@
 // state into the choreography: buzz on commit, 3-2-1 sting, grid, auto-dim
 // "look up", face-down debrief, anonymous ballots.
 
-import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, tierTagline, TIER_NAMES, confButtons } from './util.js';
+import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, tierTagline, TIER_NAMES, confButtons, fmtPts } from './util.js';
 import { CONF } from './scoring.js';
 import * as audio from './audio.js';
 import { getName, setName, recordCalibration, saveSession, getCalibration } from './storage.js';
@@ -205,8 +205,8 @@ const SCREENS = {
       <p class="kicker center">${esc(s.subjectName)}'s answer</p>
       <div class="truth-big">${esc(s.truth)}</div>
       ${tutorial ? `<p class="muted center">Warm-up round — no points yet.</p>` : mine ? `
-        <div class="pts-huge ${mine.correct ? 'good' : ''}">+${mine.pts}</div>
-        <p class="muted center small">${mine.auto ? 'Too slow — counted as a safe Pass.' : mine.correct ? 'You guessed right.' : 'You guessed wrong.'}</p>` : `
+        <div class="pts-huge ${mine.correct ? 'good' : mine.pts < 0 ? 'bad' : ''}">${fmtPts(mine.pts)}</div>
+        <p class="muted center small">${mine.auto ? 'Too slow — no guess, no points.' : mine.correct ? 'You guessed right.' : 'You guessed wrong.'}</p>` : `
         <div class="pts-huge ${hits > scored.length / 2 ? 'good' : ''}">${hits}/${scored.length}</div>
         <p class="muted center small">guessed you right</p>`}
       ${s.flavor && !tutorial ? `<p class="split-flag">${esc(s.flavor)}</p>` : ''}
@@ -354,7 +354,7 @@ function revealGrid(s) {
     <div class="grid-row ${c.auto ? 'autopass' : ''}">
       <span class="name">${esc(c.name)}</span>
       <span class="ans">${c.auto ? '—' : esc(c.answer)}</span>
-      <span class="conf">${c.auto ? 'timed out · pass' : c.conf ? CONF[c.conf].label : ''}</span>
+      <span class="conf">${c.auto ? 'no guess' : c.conf ? CONF[c.conf].label : ''}</span>
     </div>`).join('');
   render(`
     <p class="kicker center">everyone's guesses</p>
