@@ -16,7 +16,13 @@ import { TUTORIAL } from './public/js/tutorial.js';
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const rawDeck = JSON.parse(fs.readFileSync(path.join(ROOT, 'deck.json'), 'utf8'));
-const DECK = [...TUTORIAL, ...(rawDeck.probes || rawDeck)];
+// Two play levels: deck T2+T3 → 1 "Spicy" (the starting line), T4+T5 → 2 "Deep".
+// Deck T1 is dropped — surface trivia wastes the table's appetite.
+const TIER_MAP = { 2: 1, 3: 1, 4: 2, 5: 2 };
+const DECK = [
+  ...TUTORIAL,
+  ...(rawDeck.probes || rawDeck).filter(p => TIER_MAP[p.tier]).map(p => ({ ...p, tier: TIER_MAP[p.tier] })),
+];
 
 // ---------- static files ----------
 const MIME = {
@@ -65,7 +71,6 @@ const PACE = {
 };
 const DEFAULT_ROUNDS = Number(process.env.BB_ROUNDS) || 12;
 const ROUND_CHOICES = [4, 6, 8, 12, 16, 20];
-const TABLE_TIER_CAP = 4;
 const tm = room => PACE[room.settings.pace] || PACE.standard;
 
 function newCode() {
@@ -218,9 +223,9 @@ function abandonRound(room) { startRound(room); }
 
 function endRound(room) {
   if (room.round > 0) { room.roundsPlayed += 1; room.sinceBallot += 1; }
-  // ballot before stats: a completed last rotation still votes, so a one-rotation
-  // demo shows the ballot, and "one more rotation" resumes at the voted tier
-  if (room.round > 0 && room.sinceBallot >= room.players.length) { toBallot(room); return; }
+  // one guardrail: while still spicy, each full rotation asks once — go deep?
+  // (once deep, there's nothing left to vote on; the burn is the safety valve)
+  if (room.round > 0 && room.tier === 1 && room.sinceBallot >= room.players.length) { toBallot(room); return; }
   if (room.round > 0 && room.roundsPlayed >= room.roundsTotal) { toStats(room); return; }
   startRound(room);
 }
@@ -234,21 +239,11 @@ function toBallot(room) {
 
 function resolveBallot(room) {
   if (room.phase !== 'ballot') return;
-  const votes = room.players.map(p => room.votes.get(p.id) || 'stay'); // absent = stay
-  let dir = 'deepen';
-  if (votes.includes('retreat')) dir = 'retreat';
-  else if (votes.includes('stay')) dir = 'stay';
+  // majority takes the table deep; absent votes count as "not yet"
+  const deep = room.players.filter(p => room.votes.get(p.id) === 'deepen').length;
   room.sinceBallot = 0;
-  if (dir === 'retreat') room.tier = Math.max(1, room.tier - 1);
-  if (dir === 'deepen') {
-    if (room.tier >= TABLE_TIER_CAP) {
-      // never show counts; the only response to pushing past T4 is social
-      room.ballotOutcome = { dir: 'splinter', tier: TABLE_TIER_CAP };
-      setPhase(room, 'splinter');
-      return;
-    }
-    room.tier += 1;
-  }
+  const dir = deep > room.players.length / 2 ? 'deepen' : 'stay';
+  if (dir === 'deepen') room.tier = 2;
   room.ballotOutcome = { dir, tier: room.tier };
   setPhase(room, 'ballotResult', 5);
 }
@@ -319,14 +314,11 @@ function handleAction(room, pid, a, d = {}) {
       }
       break;
     case 'vote':
-      if (room.phase === 'ballot' && ['deepen', 'stay', 'retreat'].includes(d.v) && !room.votes.has(pid)) {
+      if (room.phase === 'ballot' && ['deepen', 'stay'].includes(d.v) && !room.votes.has(pid)) {
         room.votes.set(pid, d.v);
         if (room.players.filter(p => p.connected).every(p => room.votes.has(p.id))) resolveBallot(room);
         else broadcast(room);
       }
-      break;
-    case 'splinterAck':
-      if (room.phase === 'splinter') afterBallot(room);
       break;
     case 'skip': // any player may unstick a round whose subject dropped
       if (['preview', 'probe', 'commit', 'reveal'].includes(room.phase) && !subjectOf(room)?.connected) abandonRound(room);
@@ -376,14 +368,14 @@ function stateFor(room, pid) {
     truth: showTruth ? room.truth : null,
     roundPts: showTruth ? room.roundPts : null,
     flavor: showTruth ? room.flavor : null,
-    interim: ['ballotResult', 'splinter'].includes(room.phase) ? room.interim : null,
+    interim: room.phase === 'ballotResult' ? room.interim : null,
     commits: showCommits
       ? predictorsOf(room).map(p => {
           const c = room.commits.get(p.id) || { answer: null, conf: null, auto: true };
           return { pid: p.id, name: p.name, answer: c.answer, conf: c.conf, auto: !!c.auto };
         })
       : null,
-    ballotOutcome: ['ballotResult', 'splinter'].includes(room.phase) ? room.ballotOutcome : null,
+    ballotOutcome: room.phase === 'ballotResult' ? room.ballotOutcome : null,
     voteCount: null, // never leak ballot progress — anonymity is the point
     statsData: room.phase === 'stats' ? room.statsData : null,
     history: room.phase === 'stats' ? room.history : null,

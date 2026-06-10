@@ -85,13 +85,11 @@ const VIEWS = {
     everyFrame(() => { if (last?.phase === 'debrief') VIEWS.debrief(last); }, 1000);
   },
   ballot(s) {
-    render(`<p class="lookup-msg">Secret vote on your phones:</p><p class="kicker">how deep should the questions go?</p>`, 'stage dead');
+    render(`<p class="lookup-msg">Secret vote on your phones:</p><p class="kicker">ready to go deeper?</p>`, 'stage dead');
   },
   ballotResult(s) {
     const o = s.ballotOutcome || {};
-    const line = o.dir === 'deepen' ? `The questions get deeper: ${tierLabel(o.tier)}.`
-      : o.dir === 'retreat' ? `The questions get lighter: ${tierLabel(o.tier)}.`
-      : `The questions stay at ${tierLabel(o.tier)}.`;
+    const line = o.dir === 'deepen' ? 'The table goes deep.' : 'Staying spicy — for now.';
     const i = s.interim || {};
     const parts = [];
     if (i.oracle) parts.push(`best reader: ${esc(i.oracle)}`);
@@ -101,9 +99,6 @@ const VIEWS = {
       <p class="lookup-msg">${line}</p>
       ${parts.length ? `<p class="kicker" style="text-align:center">so far — ${parts.join(' · ')}</p>` : ''}
     `, 'stage dead');
-  },
-  splinter() {
-    render(`<p class="lookup-msg">This is pair territory.<br>Find a corner.</p>`, 'stage dead');
   },
   stats(s) {
     render(statsCard(s.statsData), 'stage');

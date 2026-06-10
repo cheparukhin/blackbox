@@ -12,7 +12,13 @@ gain, wrong answers lose), two modes:
 - **Local (one phone, 2+)** — pure client-side pass-and-play: each predictor takes
   the phone in turn and commits privately, so full scoring survives offline. A
   service worker caches the whole app, so once loaded it runs with zero
-  connectivity. With exactly two players, tiers go to 5 (scale + free-form probes).
+  connectivity. With exactly two players the deep pool includes the free-form
+  and 1–10 scale questions.
+
+Two play levels, one guardrail: every game starts **Spicy** (envy, crushes, status
+anxiety) and a secret majority vote once per rotation can take it **Deep**
+(confessions, who-of-us picks, the unsaid). The invisible burn is the per-question
+veto; that's the consent machinery.
 
 Plus an optional **stage view** (`/?room=CODE&stage=1`, or "use this device as a big
 screen" in the lobby).
@@ -49,10 +55,11 @@ reclaim their seats. Dyad mode keeps working offline once a phone has loaded the
 ## Layout
 
 - `server.js` — static files + room relay + the authoritative round state machine
-- `public/deck.json` — the deck (v2.1, 164 probes, tiered T1–T5, `{name}` placeholder;
-  master copy at `black-box-deck.json`). The deck is the product; tune it nightly,
-  it's plain JSON. T0 tutorial probes live in `public/js/tutorial.js` so they survive
-  deck swaps.
+- `public/deck.json` — the deck (v2.1, `{name}` placeholder; master copy at
+  `black-box-deck.json`). The file is tiered 1–5; play remaps it to two levels
+  (T2+T3 → Spicy, T4+T5 → Deep, T1 dropped as too tame). The deck is the product;
+  tune it nightly, it's plain JSON. Warm-up probes live in `public/js/tutorial.js`
+  so they survive deck swaps.
 - `public/js/scoring.js` — the proper scoring rule (shared verbatim by server & client)
 - `public/js/stats.js`, `statsview.js` — end-card math + rendering (Oracle, Open Book,
   Enigma, Boldest Call, Icarus, legibility delta, lifetime calibration)

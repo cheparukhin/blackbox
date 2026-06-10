@@ -1,11 +1,11 @@
 // Local mode — one shared phone, pass-and-play, any number of players (2+).
 // The dyad engine generalized: every predictor takes the phone in turn and
 // commits privately (answer + confidence), so full scoring survives without a
-// network. Two players unlock Tier 5 (the Vault) with scale and free-form
-// probes; bigger groups play the table deck — relational probes included —
-// capped at Tier 4.
+// network. Starts spicy; one secret majority vote per rotation can take it
+// deep. Two players get the free-form and 1–10 scale questions in the deep
+// pool; bigger groups get confessions and who-of-us questions.
 
-import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, tierTagline, TIER_NAMES, confButtons, fmtPts } from './util.js';
+import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, confButtons, fmtPts } from './util.js';
 import { CONF, scoreChoice, scoreScale, GRADES, GRADE_ORDER } from './scoring.js';
 import { computeStats, roundFlavor, interimStats } from './stats.js';
 import { statsCard } from './statsview.js';
@@ -37,7 +37,7 @@ function setup() {
         <button data-a="add">Add player</button>
         <button class="primary" data-a="go">Start</button>
       </div>
-      <p class="muted small center">${S.players.length === 2 ? 'Two players — the questions can go all the way to the Vault.' : S.players.length > 2 ? 'Group game — the questions go up to Confession.' : 'Two players go deepest; any number works.'}</p>
+      <p class="muted small center">Starts spicy; a secret vote can take it deep.</p>
       <button class="ghost" data-a="back">Back</button>
     `);
     // typing a name and hitting Start (or return) just works — no separate Add step
@@ -61,7 +61,6 @@ function setup() {
         S.n = S.players.length;
         S.roundsTotal = S.n <= 2 ? 10 : 2 * S.n;
         S.ballotEvery = S.n <= 2 ? 3 : S.n;
-        S.tierCap = S.n <= 2 ? 5 : 4;
         S.deckMode = S.n <= 2 ? 'dyad' : 'table';
         startRound();
       },
@@ -275,24 +274,24 @@ function debriefScreen() {
 function nextOrBallot() {
   if (S.round === 0) { S.round = 1; return startRound(); }
   S.round += 1;
-  if (S.sinceBallot >= S.ballotEvery) { S.sinceBallot = 0; S.votes = []; return ballotPass(0); }
+  // one guardrail: while still spicy, ask once per rotation — go deep?
+  if (S.tier === 1 && S.sinceBallot >= S.ballotEvery) { S.sinceBallot = 0; S.votes = []; return ballotPass(0); }
   if (S.scored >= S.roundsTotal) return statsScreen();
   startRound();
 }
 
 // Ballot — the phone passes; nobody ever sees anyone's vote, only the outcome.
 function ballotPass(i) {
-  passScreen(S.players[i].name, 'Time to vote: should the questions get deeper? Your vote is secret.', () => ballotVote(i));
+  passScreen(S.players[i].name, 'Secret vote: ready to go deeper?', () => ballotVote(i));
 }
 function ballotVote(i) {
   render(`
-    <p class="kicker center">secret vote · how deep should the questions go?</p>
-    <p class="center">You're at <b>${tierLabel(S.tier)}</b><br>
-      <span class="muted small">${esc(tierTagline(S.tier))}</span></p>
-    <button class="primary" data-a="v" data-v="deepen">Deeper${S.tier >= S.tierCap ? '' : ` · ${TIER_NAMES[S.tier + 1]}`}</button>
-    <button data-a="v" data-v="stay">Stay here · ${TIER_NAMES[S.tier]}</button>
-    <button data-a="v" data-v="retreat">Lighter${S.tier > 1 ? ` · ${TIER_NAMES[S.tier - 1]}` : ''}</button>
-    <p class="ballot-note">Deeper only happens if everyone votes for it. Nobody sees votes — only the result.</p>
+    <p class="kicker center">secret vote</p>
+    <p class="center">Ready to go deeper?<br>
+      <span class="muted small">Deep = confessions, secrets${S.n <= 2 ? ', the unsaid' : ', who-of-us questions'}.</span></p>
+    <button class="primary" data-a="v" data-v="deepen">Go deep · the real stuff</button>
+    <button data-a="v" data-v="stay">Not yet · stay spicy</button>
+    <p class="ballot-note">Majority decides; nobody sees the votes. Any question can still be burned.</p>
   `);
   bind({ v: d => {
     S.votes.push(d.v);
@@ -300,16 +299,10 @@ function ballotVote(i) {
   } });
 }
 function resolveBallot() {
-  let dir = 'deepen';
-  if (S.votes.includes('retreat')) dir = 'retreat';
-  else if (S.votes.includes('stay')) dir = 'stay';
+  const deep = S.votes.filter(v => v === 'deepen').length;
   let line;
-  if (dir === 'retreat') { S.tier = Math.max(1, S.tier - 1); line = `The questions get lighter:<br><b>${tierLabel(S.tier)}</b>.`; }
-  else if (dir === 'stay') { line = `The questions stay at<br><b>${tierLabel(S.tier)}</b>.`; }
-  else if (S.tier >= S.tierCap) {
-    line = S.n <= 2 ? `You stay in <b>${tierLabel(S.tier)}</b> — there is nothing deeper.`
-      : `Deeper than Tier 4 is for pairs. Find a corner — two people, this phone.`;
-  } else { S.tier += 1; line = `The questions get deeper:<br><b>${tierLabel(S.tier)}</b>.`; }
+  if (deep > S.n / 2) { S.tier = 2; line = `You go <b>deep</b>.`; }
+  else { line = `Staying <b>spicy</b> — for now.`; }
   const i = interimStats(S.history, S.players);
   const parts = [];
   if (i.oracle) parts.push(`best reader: ${esc(i.oracle)}`);

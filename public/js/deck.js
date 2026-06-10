@@ -3,12 +3,19 @@
 
 import { TUTORIAL } from './tutorial.js';
 
+// The deck file is tiered 1–5; play knows two levels. Old T1 (surface trivia)
+// is dropped as too tame, T2+T3 → 1 "Spicy", T4+T5 → 2 "Deep".
+export const TIER_MAP = { 2: 1, 3: 1, 4: 2, 5: 2 };
+export function remapDeck(probes) {
+  return probes.filter(p => TIER_MAP[p.tier]).map(p => ({ ...p, tier: TIER_MAP[p.tier] }));
+}
+
 let DECK = null;
 
 export async function loadDeck() {
   if (DECK) return DECK;
   const raw = await (await fetch('/deck.json')).json();
-  DECK = [...TUTORIAL, ...(raw.probes || raw)];
+  DECK = [...TUTORIAL, ...remapDeck(raw.probes || raw)];
   return DECK;
 }
 

@@ -86,10 +86,8 @@ export function confButtons(probe) {
   }).join('');
 }
 
-export const TIER_NAMES = { 0: 'Tutorial', 1: 'Surface', 2: 'Character', 3: 'Skin', 4: 'Confession', 5: 'Vault' };
-export const TIER_TAGLINES = {
-  1: 'being read is funny', 2: 'being read is interesting', 3: 'being read is exposing',
-  4: 'being read is intimate', 5: 'being read is profound',
-};
-export function tierLabel(t) { return t === 0 ? 'Warm-up' : `Tier ${t} · ${TIER_NAMES[t] || ''}`; }
+// Two levels only: the game starts spicy and can go deep — that's it.
+export const TIER_NAMES = { 0: 'Warm-up', 1: 'Spicy', 2: 'Deep' };
+export const TIER_TAGLINES = { 1: 'worth gossiping about', 2: 'the real stuff' };
+export function tierLabel(t) { return TIER_NAMES[t] || ''; }
 export function tierTagline(t) { return TIER_TAGLINES[t] || ''; }

@@ -2,7 +2,7 @@
 // state into the choreography: buzz on commit, 3-2-1 sting, grid, auto-dim
 // "look up", face-down debrief, anonymous ballots.
 
-import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, tierTagline, TIER_NAMES, confButtons, fmtPts } from './util.js';
+import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, confButtons, fmtPts } from './util.js';
 import { CONF } from './scoring.js';
 import * as audio from './audio.js';
 import { getName, setName, recordCalibration, saveSession, getCalibration } from './storage.js';
@@ -244,34 +244,21 @@ const SCREENS = {
   ballot(s) {
     if (s.you?.voted) return deadScreen('your vote is in — waiting for the others', s);
     render(`
-      <p class="kicker center">secret vote · how deep should the questions go?</p>
-      <p class="center">The table is at <b>${tierLabel(s.tier)}</b><br>
-        <span class="muted small">${esc(tierTagline(s.tier))}</span></p>
-      <button class="primary" data-a="v" data-v="deepen">Deeper${s.tier >= 4 ? ' · past Tier 4' : ` · ${TIER_NAMES[s.tier + 1]}`}</button>
-      <button data-a="v" data-v="stay">Stay here · ${TIER_NAMES[s.tier]}</button>
-      <button data-a="v" data-v="retreat">Lighter${s.tier > 1 ? ` · ${TIER_NAMES[s.tier - 1]}` : ''}</button>
-      <p class="ballot-note">Deeper only happens if everyone votes for it. Nobody sees votes — only the result.</p>
+      <p class="kicker center">secret vote</p>
+      <p class="center">Ready to go deeper?<br>
+        <span class="muted small">Deep = confessions, secrets, who-at-this-table questions.</span></p>
+      <button class="primary" data-a="v" data-v="deepen">Go deep · the real stuff</button>
+      <button data-a="v" data-v="stay">Not yet · stay spicy</button>
+      <p class="ballot-note">Majority decides; nobody sees the votes. Any question can still be burned.</p>
     `);
     bind({ v: d => act('vote', { v: d.v }) });
   },
 
   ballotResult(s) {
     const o = s.ballotOutcome || { dir: 'stay', tier: s.tier };
-    const line = o.dir === 'deepen' ? `The questions get deeper:<br><b>${tierLabel(o.tier)}</b>.`
-      : o.dir === 'retreat' ? `The questions get lighter:<br><b>${tierLabel(o.tier)}</b>.`
-      : `The questions stay at<br><b>${tierLabel(o.tier)}</b>.`;
+    const line = o.dir === 'deepen' ? `The table goes <b>deep</b>.`
+      : `Staying <b>spicy</b> — for now.`;
     render(`<p class="lookup-msg">${line}</p>${interimLine(s)}`, 'dead');
-  },
-
-  splinter(s) {
-    render(`
-      <p class="kicker center">past tier 4</p>
-      <p class="lookup-msg">This is pair territory.<br>Find a corner.</p>
-      <p class="muted center small">Two people, one phone, no room needed — Local mode from the home screen goes to Tier 5.</p>
-      ${interimLine(s)}
-      <button data-a="back">Back to the table · Tier 4</button>
-    `);
-    bind({ back: () => act('splinterAck') });
   },
 
   stats(s) {
