@@ -1,0 +1,175 @@
+:root {
+  --bg: #0b0e13;
+  --panel: #151a23;
+  --panel2: #1c2330;
+  --ink: #e9e6df;
+  --dim: #8b93a3;
+  --faint: #4a5160;
+  --amber: #ffb454;
+  --good: #69d58c;
+  --bad: #ff6b6b;
+  --line: #262e3d;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+input, textarea { user-select: text; -webkit-user-select: text; }
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: 14px;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ----- type ----- */
+h1 { font-size: 30px; margin: 0; letter-spacing: 0.04em; }
+.brand { font-weight: 800; letter-spacing: 0.18em; }
+.kicker { color: var(--dim); font-size: 13px; text-transform: uppercase; letter-spacing: 0.14em; margin: 0; }
+.probe-text {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 26px;
+  line-height: 1.35;
+  margin: 8px 0;
+}
+.muted { color: var(--dim); }
+.small { font-size: 14px; }
+.center { text-align: center; }
+.spacer { flex: 0 0 8px; }
+
+/* ----- buttons ----- */
+button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 19px;
+  font-weight: 600;
+  border-radius: 14px;
+  padding: 16px 18px;
+  min-height: 58px;
+  cursor: pointer;
+  width: 100%;
+}
+button:active { background: var(--panel2); transform: scale(0.99); }
+button.primary { background: var(--amber); border-color: var(--amber); color: #14100a; }
+button.ghost { background: transparent; border-color: var(--faint); color: var(--dim); }
+button.danger { border-color: var(--bad); color: var(--bad); background: transparent; }
+button.selected { border-color: var(--amber); background: #2a2010; color: var(--amber); }
+button:disabled { opacity: 0.4; pointer-events: none; }
+.btn-row { display: flex; gap: 10px; }
+.btn-row button { flex: 1; }
+.conf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.options { display: flex; flex-direction: column; gap: 10px; }
+
+/* ----- panels / lists ----- */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.player-list { display: flex; flex-direction: column; gap: 8px; }
+.player-row { display: flex; justify-content: space-between; padding: 10px 14px; background: var(--panel); border-radius: 10px; border: 1px solid var(--line); }
+.player-row .off { color: var(--faint); }
+
+.code-big {
+  font-size: 56px; font-weight: 800; letter-spacing: 0.25em;
+  text-align: center; color: var(--amber); margin: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+.qr { display: block; margin: 0 auto; border-radius: 12px; background: #fff; padding: 8px; width: 168px; height: 168px; }
+
+/* ----- timers ----- */
+.bar { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--amber); border-radius: 3px; transition: width 0.25s linear; }
+.countdown-huge { font-size: 120px; font-weight: 800; text-align: center; color: var(--amber); line-height: 1; }
+
+/* ----- dead screens: the app's most important feature ----- */
+.dead { background: #06080c; justify-content: center; align-items: center; }
+.dead-hint { color: #353c49; font-size: 15px; text-align: center; letter-spacing: 0.06em; }
+.dead-big { color: #454e5e; font-size: 26px; font-weight: 700; text-align: center; letter-spacing: 0.1em; }
+.facedown { background: #04060a; }
+.facedown .dead-big { color: #3a4252; }
+.lookup-msg { color: #6a7283; font-size: 30px; font-weight: 700; text-align: center; line-height: 1.4; }
+
+/* ----- reveal grid ----- */
+.grid { display: flex; flex-direction: column; gap: 8px; }
+.grid-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+}
+.grid-row .name { font-weight: 700; }
+.grid-row .ans { font-weight: 700; }
+.grid-row .conf { color: var(--dim); font-size: 14px; }
+.grid-row.hit { border-color: var(--good); }
+.grid-row.miss { border-color: var(--bad); opacity: 0.9; }
+.grid-row.autopass { opacity: 0.45; }
+.split-flag { text-align: center; color: var(--amber); font-weight: 700; }
+
+.pts-huge { font-size: 64px; font-weight: 800; text-align: center; }
+.pts-huge.good { color: var(--good); }
+.truth-big { font-family: Georgia, serif; font-size: 40px; text-align: center; font-weight: 700; }
+
+/* ----- inputs ----- */
+input[type=text], textarea {
+  width: 100%; background: var(--panel); border: 1px solid var(--line);
+  color: var(--ink); font: inherit; font-size: 19px; border-radius: 12px; padding: 14px;
+}
+textarea { min-height: 90px; resize: none; }
+.scale-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.scale-row button { min-height: 52px; padding: 10px 0; font-size: 20px; }
+
+/* ----- settings ----- */
+.setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.setting-row:last-child { border-bottom: none; }
+.toggle { width: auto; min-height: 40px; padding: 8px 16px; font-size: 15px; }
+
+/* ----- stats / end card ----- */
+.award { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.award .title { color: var(--amber); font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; }
+.award .who { font-size: 20px; font-weight: 700; }
+.award .why { color: var(--dim); font-size: 14px; }
+
+/* ----- ballot ----- */
+.ballot-note { color: var(--dim); font-size: 14px; text-align: center; }
+
+/* ----- flash overlay (vibration fallback, iOS has no vibrate API) ----- */
+#flash {
+  position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 99;
+}
+#flash.on { animation: flash 0.45s ease-out; }
+@keyframes flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+
+/* ----- stage view (landscape, large type, read-only) ----- */
+.stage { max-width: none; padding: 4vh 6vw; justify-content: center; }
+.stage .probe-text { font-size: 5.2vw; text-align: center; }
+.stage .code-big { font-size: 12vw; }
+.stage .kicker { font-size: 2vw; text-align: center; }
+.stage .lock-huge { font-size: 16vw; font-weight: 800; text-align: center; color: var(--amber); }
+.stage .grid { max-width: 70vw; margin: 0 auto; width: 100%; }
+.stage .grid-row { font-size: 2.6vw; padding: 1.2vw 2vw; }
+.stage .countdown-huge { font-size: 24vw; }
+.stage .truth-big { font-size: 7vw; }
+.stage .qr { width: 24vw; height: 24vw; }
+.stage .award .who { font-size: 3vw; }
+.stage .award .title { font-size: 1.6vw; }
+.stage .award .why { font-size: 1.8vw; }
+
+/* tiny screens */
+@media (max-height: 640px) {
+  .probe-text { font-size: 22px; }
+  button { min-height: 50px; font-size: 17px; }
+}

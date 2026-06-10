@@ -1,0 +1,9 @@
+# Render blueprint — free tier. In Render: New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: blackbox
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /
