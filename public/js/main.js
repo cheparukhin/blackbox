@@ -18,12 +18,12 @@ export function home() {
   clearTickers();
   history.replaceState(null, '', '/');
   render(`
-    <p class="kicker center">a game of modeling with verification</p>
+    <p class="kicker center">how well can you read each other?</p>
     <h1 class="brand center">BLACK BOX</h1>
-    <p class="muted center small">Score points by demonstrating you understand the person in front of you.</p>
+    <p class="muted center small">Guess what the person in front of you will say about themselves. Lock it in. Find out.</p>
     <div class="spacer"></div>
-    <button class="primary" data-a="net">Everyone's phone &nbsp;·&nbsp; join a room</button>
-    <button data-a="local">One phone &nbsp;·&nbsp; pass it around</button>
+    <button class="primary" data-a="net">Play on everyone's phones</button>
+    <button data-a="local">Play on one shared phone</button>
     <p class="muted center small">Any number of players. Two people go deepest.</p>
     <div class="spacer"></div>
     <button class="ghost" data-a="sound">Sounds: ${soundOn() ? 'on' : 'off'}</button>
@@ -44,13 +44,13 @@ export function home() {
 // Honesty norms — one screen, three lines, must be tapped through. Spec §8.
 export function honesty(next) {
   render(`
-    <p class="kicker">Before you play</p>
+    <p class="kicker">the one rule</p>
     <div class="panel">
-      <p>Answers are <b>true or burned — never false</b>.</p>
-      <p>Burning is always free and invisible.</p>
-      <p>You cannot score points by being hard to read, so deceiving the table isn't strategy — it's just defecting against the point.</p>
+      <p>Each round, everyone guesses how <b>one player</b> will answer a question about themselves. Then that player answers — <b>truthfully</b>.</p>
+      <p>Don't want to answer something? <b>Burn it</b> and you'll get a different question. Burning is free, unlimited, and invisible — nobody ever knows.</p>
+      <p>So never lie: your own answers earn you nothing. All the points are in guessing other people right.</p>
     </div>
-    <button class="primary" data-a="ok">I'm in</button>
+    <button class="primary" data-a="ok">Got it — let's play</button>
   `);
   bind({ ok: () => next() });
 }

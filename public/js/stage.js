@@ -43,13 +43,13 @@ const VIEWS = {
     `, 'stage');
   },
   preview(s) {
-    render(`<p class="kicker">${esc(s.subjectName)} is drawing…</p>`, 'stage dead');
+    render(`<p class="kicker">${esc(s.subjectName)} is choosing a question…</p>`, 'stage dead');
   },
   probe(s) {
     render(`
-      <p class="kicker">${tierLabel(s.tier)} · round ${Math.max(1, s.round)}</p>
+      <p class="kicker">${tierLabel(s.tier)} · round ${Math.max(1, s.round)} · about ${esc(s.subjectName)}</p>
       <p class="probe-text">${esc(probeText(s.probe.text, s.subjectName))}</p>
-      <p class="kicker">${esc(s.subjectName)}, read it out</p>
+      <p class="kicker">${esc(s.subjectName)}, read it out loud</p>
     `, 'stage');
   },
   commit(s) {
@@ -65,13 +65,13 @@ const VIEWS = {
     if (elapsed < 3000) {
       render(`<div class="countdown-huge">${3 - Math.floor(elapsed / 1000)}</div>`, 'stage dead');
     } else {
-      grid(s, `${esc(s.subjectName)}, tell them.`);
+      grid(s, `${esc(s.subjectName)}, say your real answer out loud.`);
     }
     everyFrame(() => { if (last?.phase === 'reveal') VIEWS.reveal(last); }, 250);
   },
   truth(s) {
     render(`
-      <p class="kicker">the truth</p>
+      <p class="kicker">${esc(s.subjectName)}'s answer</p>
       <div class="truth-big">${esc(s.truth)}</div>
       ${s.flavor ? `<p class="split-flag" style="font-size:2.4vw">${esc(s.flavor)}</p>` : ''}
     `, 'stage');
@@ -79,7 +79,7 @@ const VIEWS = {
   debrief(s) {
     const left = secsLeft(s.phaseEndsAt, offset);
     render(`
-      <p class="kicker">debrief · minority report speaks first</p>
+      <p class="kicker">talk — what made you guess that?</p>
       <div class="countdown-huge" style="font-size:14vw">${left ?? ''}</div>
     `, 'stage');
     everyFrame(() => { if (last?.phase === 'debrief') VIEWS.debrief(last); }, 1000);
@@ -88,13 +88,13 @@ const VIEWS = {
     render(`<p class="lookup-msg">${esc(s.subjectName)} gets the last word.</p>`, 'stage dead');
   },
   ballot(s) {
-    render(`<p class="lookup-msg">Secret ballot.</p><p class="kicker">deepen · stay · retreat</p>`, 'stage dead');
+    render(`<p class="lookup-msg">Secret vote on your phones:</p><p class="kicker">how deep should the questions go?</p>`, 'stage dead');
   },
   ballotResult(s) {
     const o = s.ballotOutcome || {};
-    const line = o.dir === 'deepen' ? `The table deepens to ${tierLabel(o.tier)}.`
-      : o.dir === 'retreat' ? `The table eases back to ${tierLabel(o.tier)}.`
-      : `The table stays at ${tierLabel(o.tier)}.`;
+    const line = o.dir === 'deepen' ? `The questions get deeper: ${tierLabel(o.tier)}.`
+      : o.dir === 'retreat' ? `The questions get lighter: ${tierLabel(o.tier)}.`
+      : `The questions stay at ${tierLabel(o.tier)}.`;
     const i = s.interim || {};
     const parts = [];
     if (i.oracle) parts.push(`best reader: ${esc(i.oracle)}`);
@@ -127,3 +127,4 @@ function grid(s, footer) {
     <p class="kicker" style="text-align:center">${footer}</p>
   `, 'stage');
 }
+

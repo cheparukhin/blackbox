@@ -136,29 +136,29 @@ const SCREENS = {
       const total = Math.max(1, (s.phaseEndsAt - s.phaseStartedAt) / 1000);
       const left = secsLeft(s.phaseEndsAt, offset);
       render(`
-        <p class="kicker">${tierLabel(s.probe.tier)} · your eyes only</p>
+        <p class="kicker">${tierLabel(s.probe.tier)} · only you can see this</p>
         <p class="probe-text">${esc(probeText(s.probe.text, s.you.name))}</p>
-        <p class="muted small">Keep it, or burn it — nobody will ever know.</p>
+        <p class="muted small">Keep it and answer honestly — or burn it for a different question. Nobody will know.</p>
         ${timerBar((left ?? 0) / total)}
         <div class="btn-row">
-          <button data-a="burn">Burn</button>
+          <button data-a="burn">Burn it</button>
           <button class="primary" data-a="keep">Keep it</button>
         </div>
       `);
       bind({ burn: () => act('burn'), keep: () => act('keep') });
       everyFrame(() => { if (lastState?.phase === 'preview') paintBarOnly(total); });
     } else {
-      deadScreen('drawing…', s);
+      deadScreen(`${s.subjectName} is choosing a question…`, s);
     }
   },
 
   probe(s) {
     const mine = s.you?.isSubject;
     render(`
-      <p class="kicker">${tierLabel(s.probe.tier)}</p>
+      <p class="kicker">${tierLabel(s.probe.tier)} · this round is about ${esc(s.subjectName)}</p>
       <p class="probe-text">${esc(probeText(s.probe.text, s.subjectName))}</p>
-      <p class="${mine ? '' : 'muted'}">${mine ? 'Read it out loud to the table.' : `${esc(s.subjectName)}, read it out.`}</p>
-      ${mine ? `<button class="primary" data-a="ready">Everyone heard it — start the clock</button>` : ''}
+      <p class="${mine ? '' : 'muted'}">${mine ? 'Read it out loud to the table.' : `${esc(s.subjectName)}, read it out loud.`}</p>
+      ${mine ? `<button class="primary" data-a="ready">Everyone heard it — start the guessing</button>` : ''}
       ${skipButton(s)}
     `);
     bind({ ready: () => act('ready'), skip: () => act('skip') });
@@ -192,13 +192,13 @@ const SCREENS = {
     const scored = (s.roundPts || []).filter(r => !r.auto && r.correct !== null);
     const hits = scored.filter(r => r.correct).length;
     render(`
-      <p class="kicker center">the truth</p>
+      <p class="kicker center">${esc(s.subjectName)}'s answer</p>
       <div class="truth-big">${esc(s.truth)}</div>
-      ${tutorial ? `<p class="muted center">Warm-up round — no points.</p>` : mine ? `
+      ${tutorial ? `<p class="muted center">Warm-up round — no points yet.</p>` : mine ? `
         <div class="pts-huge ${mine.correct ? 'good' : ''}">+${mine.pts}</div>
-        <p class="muted center small">${mine.auto ? 'Timed out — auto-pass.' : mine.correct ? 'Read.' : 'Missed.'}</p>` : `
+        <p class="muted center small">${mine.auto ? 'Too slow — counted as a safe Pass.' : mine.correct ? 'You guessed right.' : 'You guessed wrong.'}</p>` : `
         <div class="pts-huge ${hits > scored.length / 2 ? 'good' : ''}">${hits}/${scored.length}</div>
-        <p class="muted center small">read you right</p>`}
+        <p class="muted center small">guessed you right</p>`}
       ${s.flavor && !tutorial ? `<p class="split-flag">${esc(s.flavor)}</p>` : ''}
     `);
   },
@@ -207,7 +207,7 @@ const SCREENS = {
     if (!debriefTools) {
       render(`
         <div class="dead-big">PHONES<br>FACE DOWN</div>
-        <p class="dead-hint">talk · the minority report speaks first</p>
+        <p class="dead-hint">talk — what made you guess that? whoever guessed differently goes first</p>
       `, 'dead facedown');
       document.querySelector('#app').onclick = () => { debriefTools = true; SCREENS.debrief(lastState); };
       return;
@@ -234,9 +234,9 @@ const SCREENS = {
   reply(s) {
     if (s.you?.isSubject) {
       render(`
-        <p class="kicker">your right of reply</p>
-        <p class="muted">Anything they got wrong about how they got it right?</p>
-        <button class="ghost" data-a="more">“It's more complicated” · +60s</button>
+        <p class="kicker">the last word is yours</p>
+        <p class="muted">Did they get you right? Correct anything before the next round.</p>
+        <button class="ghost" data-a="more">“It's more complicated” · talk 60s more</button>
         <button class="primary" data-a="done">Done — next round</button>
       `);
       bind({ more: () => act('extendReply'), done: () => act('endReply') });
@@ -252,24 +252,24 @@ const SCREENS = {
   },
 
   ballot(s) {
-    if (s.you?.voted) return deadScreen('ballot’s in', s);
+    if (s.you?.voted) return deadScreen('your vote is in — waiting for the others', s);
     render(`
-      <p class="kicker center">secret ballot</p>
+      <p class="kicker center">secret vote · how deep should the questions go?</p>
       <p class="center">The table is at <b>${tierLabel(s.tier)}</b><br>
         <span class="muted small">${esc(tierTagline(s.tier))}</span></p>
-      <button class="primary" data-a="v" data-v="deepen">Deepen${s.tier >= 4 ? ' · past Tier 4' : ` · ${TIER_NAMES[s.tier + 1]}`}</button>
-      <button data-a="v" data-v="stay">Stay · ${TIER_NAMES[s.tier]}</button>
-      <button data-a="v" data-v="retreat">Retreat${s.tier > 1 ? ` · ${TIER_NAMES[s.tier - 1]}` : ''}</button>
-      <p class="ballot-note">Nobody ever sees votes or counts — only the outcome.</p>
+      <button class="primary" data-a="v" data-v="deepen">Deeper${s.tier >= 4 ? ' · past Tier 4' : ` · ${TIER_NAMES[s.tier + 1]}`}</button>
+      <button data-a="v" data-v="stay">Stay here · ${TIER_NAMES[s.tier]}</button>
+      <button data-a="v" data-v="retreat">Lighter${s.tier > 1 ? ` · ${TIER_NAMES[s.tier - 1]}` : ''}</button>
+      <p class="ballot-note">Deeper only happens if everyone votes for it. Nobody sees votes — only the result.</p>
     `);
     bind({ v: d => act('vote', { v: d.v }) });
   },
 
   ballotResult(s) {
     const o = s.ballotOutcome || { dir: 'stay', tier: s.tier };
-    const line = o.dir === 'deepen' ? `The table deepens to <b>${tierLabel(o.tier)}</b>.`
-      : o.dir === 'retreat' ? `The table eases back to <b>${tierLabel(o.tier)}</b>.`
-      : `The table stays at <b>${tierLabel(o.tier)}</b>.`;
+    const line = o.dir === 'deepen' ? `The questions get deeper:<br><b>${tierLabel(o.tier)}</b>.`
+      : o.dir === 'retreat' ? `The questions get lighter:<br><b>${tierLabel(o.tier)}</b>.`
+      : `The questions stay at<br><b>${tierLabel(o.tier)}</b>.`;
     render(`<p class="lookup-msg">${line}</p>${interimLine(s)}`, 'dead');
   },
 
@@ -287,7 +287,7 @@ const SCREENS = {
   stats(s) {
     render(`
       ${statsCard(s.statsData, { calibration: getCalibration() })}
-      <button class="primary" data-a="more">One more rotation</button>
+      <button class="primary" data-a="more">Keep playing — one more round each</button>
       <button class="ghost" data-a="leave">Leave</button>
     `);
     bind({ more: () => act('more'), leave: () => { try { ws.close(); } catch {} joinedCode = null; onExit(); } });
@@ -300,16 +300,17 @@ function commitPredictor(s, left) {
   const p = s.probe;
   const opts = p.options || ['Yes', 'No'];
   render(`
-    <p class="kicker">${left}s · pick and lock</p>
+    <p class="kicker">${left}s · what will ${esc(s.subjectName)} answer?</p>
     <p class="probe-text" style="font-size:20px">${esc(probeText(p.text, s.subjectName))}</p>
     <div class="options">
       ${opts.map(o => `<button class="${pendingAnswer === o ? 'selected' : ''}" data-a="ans" data-o="${esc(o)}">${esc(o)}</button>`).join('')}
     </div>
     ${pendingAnswer !== null ? `
-      <p class="kicker">how sure?</p>
+      <p class="kicker">how sure are you?</p>
       <div class="conf-row">
         ${CONF_ORDER.map(c => `<button data-a="conf" data-c="${c}">${CONF[c].label}</button>`).join('')}
-      </div>` : ''}
+      </div>
+      <p class="muted small center">Surer = more points if right, fewer if wrong. Pass = safe either way.</p>` : ''}
   `);
   bind({
     ans: d => {
@@ -323,18 +324,18 @@ function commitPredictor(s, left) {
       const l = secsLeft(lastState.phaseEndsAt, offset) ?? 0;
       if (l <= 5) cue('t' + l, audio.tick);
       const k = document.querySelector('.kicker');
-      if (k) k.textContent = `${l}s · pick and lock`;
+      if (k) k.textContent = `${l}s · what will ${lastState.subjectName} answer?`;
     }
   }, 500);
 }
 
 function commitSubject(s, left) {
-  if (s.you.truth !== null) return lockScreen(s, 'Your truth is in. You’ll say it out loud in a moment.');
+  if (s.you.truth !== null) return lockScreen(s, 'Your answer is in. You’ll say it out loud in a moment.');
   const opts = s.probe.options || ['Yes', 'No'];
   render(`
-    <p class="kicker">${left}s · your true answer</p>
+    <p class="kicker">${left}s · your real answer, honestly</p>
     <p class="probe-text" style="font-size:20px">${esc(probeText(s.probe.text, s.you.name))}</p>
-    <p class="muted small">The table never sees this screen — they hear it from you.</p>
+    <p class="muted small">Only you can see this. After everyone locks their guess, you'll say it out loud.</p>
     <div class="options">
       ${opts.map(o => `<button data-a="t" data-o="${esc(o)}">${esc(o)}</button>`).join('')}
     </div>
@@ -345,8 +346,8 @@ function commitSubject(s, left) {
 function lockScreen(s, note = '') {
   const c = s.you?.commit;
   render(`
-    <div class="dead-big">${s.lockCount ?? 0}/${s.predictorCount} in</div>
-    <p class="dead-hint">${esc(note) || (c ? `you called ${esc(c.answer)} · ${CONF[c.conf]?.label || ''}` : 'locked · phones down')}</p>
+    <div class="dead-big">${s.lockCount ?? 0}/${s.predictorCount}<br>locked in</div>
+    <p class="dead-hint">${esc(note) || (c ? `your guess: ${esc(c.answer)} · ${CONF[c.conf]?.label || ''}` : 'locked · phone down')}</p>
   `, 'dead');
 }
 
@@ -369,7 +370,7 @@ function revealGrid(s) {
       <span class="conf">${c.auto ? 'timed out · pass' : c.conf ? CONF[c.conf].label : ''}</span>
     </div>`).join('');
   render(`
-    <p class="kicker center">the table called it</p>
+    <p class="kicker center">everyone's guesses</p>
     <div class="grid">${rows}</div>
     ${splitFlag(s)}
     ${subjectConfirm(s)}
@@ -383,8 +384,8 @@ function revealGrid(s) {
 
 function lookupScreen(s) {
   render(`
-    <p class="lookup-msg">Look up.<br>${esc(s.subjectName)}, tell them.</p>
-    ${s.you?.isSubject ? subjectConfirm(s) : '<p class="dead-hint">tap to peek at the grid</p>'}
+    <p class="lookup-msg">Look up.<br>${esc(s.subjectName)}, say your real answer out loud.</p>
+    ${s.you?.isSubject ? subjectConfirm(s) : '<p class="dead-hint">tap to see the guesses again</p>'}
     ${skipButton(s)}
   `, 'dead');
   bind({
@@ -401,9 +402,9 @@ function subjectConfirm(s) {
   if (!s.you?.isSubject) return '';
   if (!s.truthIn) {
     const opts = (s.probe.options || ['Yes', 'No']);
-    return `<p class="kicker">enter your truth first</p><div class="options">${opts.map(o => `<button data-a="t" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
+    return `<p class="kicker">first — your real answer:</p><div class="options">${opts.map(o => `<button data-a="t" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
   }
-  return `<button class="primary" data-a="confirm">I've said it out loud — confirm: ${esc(s.you.truth)}</button>`;
+  return `<button class="primary" data-a="confirm">I've told them — reveal “${esc(s.you.truth)}”</button>`;
 }
 
 function splitFlag(s) {

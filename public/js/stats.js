@@ -95,14 +95,14 @@ export function roundFlavor(history) {
     }
     if (n >= 3 && (!streak || n > streak.n)) streak = { name: p.name, n };
   }
-  if (streak) return `${streak.name} has read ${streak.n} in a row.`;
+  if (streak) return `${streak.name} is on a streak — ${streak.n} right in a row.`;
 
   const dsMiss = scored.find(p => p.conf === 'damnsure' && !p.correct);
-  if (dsMiss) return `${dsMiss.name} went Damn Sure — and down in flames.`;
-  if (scored.length >= 2 && hits.length === scored.length) return 'Open book — the whole table called it.';
-  if (scored.length >= 2 && hits.length === 0) return 'Nobody saw that coming.';
+  if (dsMiss) return `${dsMiss.name} bet Damn Sure — and missed.`;
+  if (scored.length >= 2 && hits.length === scored.length) return 'Everyone guessed it right.';
+  if (scored.length >= 2 && hits.length === 0) return 'Nobody guessed it.';
   const dsHit = scored.find(p => p.conf === 'damnsure' && p.correct);
-  if (dsHit) return `${dsHit.name} went Damn Sure — and was right.`;
+  if (dsHit) return `${dsHit.name} bet Damn Sure — and nailed it.`;
   return null;
 }
 

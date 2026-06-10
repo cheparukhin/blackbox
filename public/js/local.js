@@ -75,7 +75,7 @@ function startRound() {
   S.subjectIdx = (S.subjectIdx + 1) % S.n;
   S.commits = []; S.truth = null;
   S.probe = drawNext();
-  passScreen(subject().name, 'A probe is waiting — you get first look.', previewScreen);
+  passScreen(subject().name, `This round is about ${subject().name} — they see the question first.`, previewScreen);
 }
 
 function passScreen(name, note, next) {
@@ -94,11 +94,12 @@ function previewScreen() {
   const paint = () => {
     const left = Math.max(0, (deadline - Date.now()) / 1000);
     render(`
-      <p class="kicker">${tierLabel(S.probe.tier)} · your eyes only</p>
+      <p class="kicker">${tierLabel(S.probe.tier)} · only you can see this</p>
       <p class="probe-text">${esc(probeText(S.probe.text, subject().name))}</p>
+      <p class="muted small">Keep it and answer honestly — or burn it for a different question. Nobody will know.</p>
       ${timerBar(left / 5)}
       <div class="btn-row">
-        <button data-a="burn">Burn</button>
+        <button data-a="burn">Burn it</button>
         <button class="primary" data-a="keep">Keep it</button>
       </div>
     `);
@@ -116,8 +117,8 @@ function previewScreen() {
 
 function toPredictor(i) {
   const preds = predictors();
-  if (i >= preds.length) return passScreen(subject().name, 'Enter your true answer — then everyone looks together.', truthScreen);
-  passScreen(preds[i].name, 'Your read, in private.', () => predictScreen(i));
+  if (i >= preds.length) return passScreen(subject().name, 'Everyone has guessed. Enter your real answer — then you all look together.', truthScreen);
+  passScreen(preds[i].name, 'Your turn to guess — nobody else sees your screen.', () => predictScreen(i));
 }
 
 function predictScreen(i) {
@@ -126,15 +127,15 @@ function predictScreen(i) {
   const who = predictors()[i];
   const next = commit => { S.commits.push({ pid: who.id, name: who.name, ...commit }); toPredictor(i + 1); };
   const head = `
-    <p class="kicker">${tierLabel(p.tier)} · ${esc(who.name)} predicts ${esc(subject().name)}</p>
+    <p class="kicker">${tierLabel(p.tier)} · ${esc(who.name)} — what will ${esc(subject().name)} answer?</p>
     <p class="probe-text" style="font-size:22px">${esc(probeText(p.text, subject().name))}</p>`;
 
   if (p.answerType === 'scale') {
-    render(`${head}<p class="muted small">Your read, 1–10:</p>${scaleButtons('ans')}`);
+    render(`${head}<p class="muted small">Your guess, 1 to 10:</p>${scaleButtons('ans')}`);
     bind({ ans: d => next({ value: Number(d.v) }) });
   } else if (p.answerType === 'freeform') {
     render(`${head}
-      <textarea id="ff" placeholder="One sentence — your best read."></textarea>
+      <textarea id="ff" placeholder="One sentence — your best guess at their answer."></textarea>
       <button class="primary" data-a="lock">Lock it in</button>`);
     bind({ lock: () => {
       const t = document.querySelector('#ff').value.trim();
@@ -145,7 +146,9 @@ function predictScreen(i) {
     const paint = () => {
       render(`${head}
         <div class="options">${p.options.map(o => `<button class="${chosen === o ? 'selected' : ''}" data-a="ans" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>
-        ${chosen !== null ? `<p class="kicker">how sure?</p><div class="conf-row">${CONF_ORDER.map(c => `<button data-a="conf" data-c="${c}">${CONF[c].label}</button>`).join('')}</div>` : ''}`);
+        ${chosen !== null ? `<p class="kicker">how sure are you?</p>
+        <div class="conf-row">${CONF_ORDER.map(c => `<button data-a="conf" data-c="${c}">${CONF[c].label}</button>`).join('')}</div>
+        <p class="muted small center">Surer = more points if right, fewer if wrong. Pass = safe either way.</p>` : ''}`);
       bind({
         ans: d => { chosen = d.o; paint(); },
         conf: d => next({ answer: chosen, conf: d.c }),
@@ -158,7 +161,7 @@ function predictScreen(i) {
 function truthScreen() {
   const p = S.probe;
   const head = `
-    <p class="kicker">your true answer</p>
+    <p class="kicker">${esc(subject().name)} — your real answer, honestly</p>
     <p class="probe-text" style="font-size:22px">${esc(probeText(p.text, subject().name))}</p>`;
   if (p.answerType === 'scale') {
     render(`${head}${scaleButtons('t')}`);
@@ -184,10 +187,10 @@ function revealScreen() {
   if (p.answerType === 'freeform') { // n=2 only
     const pred = S.commits[0];
     render(`
-      <p class="kicker center">everyone — look</p>
-      <div class="panel"><p class="small muted">${esc(pred.name)} imagined:</p><p>${esc(pred.text)}</p></div>
-      <div class="panel"><p class="small muted">${esc(subject().name)} answered:</p><p>${esc(S.truth.text)}</p></div>
-      <p class="kicker center">${esc(subject().name)} — how close?</p>
+      <p class="kicker center">look together</p>
+      <div class="panel"><p class="small muted">${esc(pred.name)} guessed:</p><p>${esc(pred.text)}</p></div>
+      <div class="panel"><p class="small muted">${esc(subject().name)} really answered:</p><p>${esc(S.truth.text)}</p></div>
+      <p class="kicker center">${esc(subject().name)} — how close was the guess?</p>
       <div class="conf-row">${GRADE_ORDER.map(g => `<button data-a="g" data-g="${g}">${g[0].toUpperCase() + g.slice(1)} · ${GRADES[g]}</button>`).join('')}</div>
     `);
     bind({ g: d => {
@@ -209,19 +212,21 @@ function revealScreen() {
   const flavor = recordRound(scored);
   const truthShown = S.truth.answer ?? S.truth.value;
   render(`
-    <p class="kicker center">everyone — look</p>
+    <p class="kicker center">put the phone where everyone can see</p>
+    <p class="muted center small">${esc(subject().name)}'s real answer:</p>
     <div class="truth-big" style="font-size:30px">${esc(String(truthShown))}</div>
+    <p class="kicker center">the guesses</p>
     <div class="grid">
       ${scored.map(c => `
         <div class="grid-row ${c.correct ? 'hit' : 'miss'}">
-          <span class="name">${esc(c.name)}</span>
+          <span class="name">${c.correct ? '✓' : '✗'} ${esc(c.name)}</span>
           <span class="ans">${esc(c.answer)}</span>
-          <span class="conf">${[c.conf && CONF[c.conf].label, S.round > 0 && '+' + c.pts].filter(Boolean).join(' · ')}</span>
+          <span class="conf">${[c.conf && CONF[c.conf].label, S.round > 0 && '+' + c.pts + ' pts'].filter(Boolean).join(' · ')}</span>
         </div>`).join('')}
     </div>
-    ${S.round === 0 ? '<p class="muted center">Warm-up — no points.</p>' : ''}
+    ${S.round === 0 ? '<p class="muted center">Warm-up round — no points yet.</p>' : ''}
     ${flavor ? `<p class="split-flag">${esc(flavor)}</p>` : ''}
-    <button class="primary" data-a="next">Phone down — debrief</button>
+    <button class="primary" data-a="next">Put the phone down — talk it over</button>
   `);
   bind({ next: () => debriefScreen() });
 }
@@ -245,7 +250,7 @@ function debriefScreen() {
   render(`
     <p class="dead-hint">“I noticed…” · “I imagined you as someone who…”</p>
     <div class="dead-big">TALK</div>
-    <p class="dead-hint" id="dleft">${DEBRIEF_SEC}s · minority report speaks first</p>
+    <p class="dead-hint" id="dleft">${DEBRIEF_SEC}s · what made you guess that?</p>
     <div class="btn-row">
       <button class="ghost" data-a="ext">+30s</button>
       <button class="ghost" data-a="end">End early</button>
@@ -254,7 +259,7 @@ function debriefScreen() {
   bind({ ext: () => { endsAt.t += 30_000; }, end: finish });
   everyFrame(() => {
     if (Date.now() >= endsAt.t) finish();
-    else { const h = document.querySelector('#dleft'); if (h) h.textContent = `${Math.ceil((endsAt.t - Date.now()) / 1000)}s · minority report speaks first`; }
+    else { const h = document.querySelector('#dleft'); if (h) h.textContent = `${Math.ceil((endsAt.t - Date.now()) / 1000)}s · what made you guess that?`; }
   }, 500);
 }
 
@@ -264,9 +269,9 @@ function replyScreen() {
   let done = false;
   const finish = () => { if (done) return; done = true; clearTickers(); nextOrBallot(); };
   render(`
-    <p class="kicker">${esc(subject().name)} — right of reply</p>
-    <p class="muted">Anything they got wrong about how they got it right?</p>
-    <button class="ghost" data-a="more">“It's more complicated” · +60s</button>
+    <p class="kicker">${esc(subject().name)} — the last word is yours</p>
+    <p class="muted">Did they get you right? Correct anything before the next round.</p>
+    <button class="ghost" data-a="more">“It's more complicated” · talk 60s more</button>
     <button class="primary" data-a="done">Next round</button>
   `);
   bind({ more: () => { endsAt.t += 60_000; }, done: finish });
@@ -283,16 +288,17 @@ function nextOrBallot() {
 
 // Ballot — the phone passes; nobody ever sees anyone's vote, only the outcome.
 function ballotPass(i) {
-  passScreen(S.players[i].name, 'Secret ballot — your vote only.', () => ballotVote(i));
+  passScreen(S.players[i].name, 'Time to vote: should the questions get deeper? Your vote is secret.', () => ballotVote(i));
 }
 function ballotVote(i) {
   render(`
-    <p class="kicker center">secret ballot · only outcomes are shown</p>
+    <p class="kicker center">secret vote · how deep should the questions go?</p>
     <p class="center">You're at <b>${tierLabel(S.tier)}</b><br>
       <span class="muted small">${esc(tierTagline(S.tier))}</span></p>
-    <button class="primary" data-a="v" data-v="deepen">Deepen${S.tier >= S.tierCap ? '' : ` · ${TIER_NAMES[S.tier + 1]}`}</button>
-    <button data-a="v" data-v="stay">Stay · ${TIER_NAMES[S.tier]}</button>
-    <button data-a="v" data-v="retreat">Retreat${S.tier > 1 ? ` · ${TIER_NAMES[S.tier - 1]}` : ''}</button>
+    <button class="primary" data-a="v" data-v="deepen">Deeper${S.tier >= S.tierCap ? '' : ` · ${TIER_NAMES[S.tier + 1]}`}</button>
+    <button data-a="v" data-v="stay">Stay here · ${TIER_NAMES[S.tier]}</button>
+    <button data-a="v" data-v="retreat">Lighter${S.tier > 1 ? ` · ${TIER_NAMES[S.tier - 1]}` : ''}</button>
+    <p class="ballot-note">Deeper only happens if everyone votes for it. Nobody sees votes — only the result.</p>
   `);
   bind({ v: d => {
     S.votes.push(d.v);
@@ -304,12 +310,12 @@ function resolveBallot() {
   if (S.votes.includes('retreat')) dir = 'retreat';
   else if (S.votes.includes('stay')) dir = 'stay';
   let line;
-  if (dir === 'retreat') { S.tier = Math.max(1, S.tier - 1); line = `You ease back to <b>${tierLabel(S.tier)}</b>.`; }
-  else if (dir === 'stay') { line = `You stay at <b>${tierLabel(S.tier)}</b>.`; }
+  if (dir === 'retreat') { S.tier = Math.max(1, S.tier - 1); line = `The questions get lighter:<br><b>${tierLabel(S.tier)}</b>.`; }
+  else if (dir === 'stay') { line = `The questions stay at<br><b>${tierLabel(S.tier)}</b>.`; }
   else if (S.tier >= S.tierCap) {
     line = S.n <= 2 ? `You stay in <b>${tierLabel(S.tier)}</b> — there is nothing deeper.`
-      : `Past Tier 4 is pair territory. Find a corner — two people, this phone, local mode.`;
-  } else { S.tier += 1; line = `You deepen to <b>${tierLabel(S.tier)}</b>.`; }
+      : `Deeper than Tier 4 is for pairs. Find a corner — two people, this phone.`;
+  } else { S.tier += 1; line = `The questions get deeper:<br><b>${tierLabel(S.tier)}</b>.`; }
   const i = interimStats(S.history, S.players);
   const parts = [];
   if (i.oracle) parts.push(`best reader: ${esc(i.oracle)}`);
@@ -331,7 +337,7 @@ function statsScreen() {
   saveSession({ mode: 'local', rounds: S.scored, players: S.players.map(p => p.name) });
   render(`
     ${statsCard(st, { calibration: getCalibration(), title: 'the box opens' })}
-    <button class="primary" data-a="more">Keep going · ${S.n <= 2 ? '2 more rounds' : 'one more rotation'}</button>
+    <button class="primary" data-a="more">Keep playing · ${S.n <= 2 ? '2 more rounds' : 'one more round each'}</button>
     <button class="ghost" data-a="done">Done</button>
   `);
   bind({
