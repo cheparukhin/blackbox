@@ -27,24 +27,30 @@ function nameScreen(opts, errMsg = '') {
   clearTickers();
   const stored = getName();
   render(`
-    <p class="kicker">${opts.create ? 'Start a table' : 'Join a table'}</p>
-    ${opts.create ? '' : `<input type="text" id="code" placeholder="Room code" maxlength="4" autocapitalize="characters" autocomplete="off" value="${esc(opts.code || '')}" style="text-transform:uppercase">`}
+    <p class="kicker">everyone's phone · one room</p>
     <input type="text" id="nm" placeholder="First name" maxlength="16" autocomplete="off" value="${esc(stored)}">
+    <input type="text" id="code" placeholder="Room code (if joining)" maxlength="4" autocapitalize="characters" autocomplete="off" value="${esc(opts.code || '')}" style="text-transform:uppercase">
     ${errMsg ? `<p class="small" style="color:var(--bad)">${esc(errMsg)}</p>` : ''}
-    <button class="primary" data-a="go">${opts.create ? 'Open the table' : 'Join'}</button>
+    <button class="primary" data-a="join">Join with code</button>
+    <button data-a="create">Start a new room</button>
     <button class="ghost" data-a="back">Back</button>
   `);
+  const name = () => document.querySelector('#nm').value.trim();
   bind({
     back: () => onExit(),
-    go: () => {
+    join: () => {
       audio.unlock();
-      const name = document.querySelector('#nm').value.trim();
-      const code = opts.create ? null : document.querySelector('#code').value.trim().toUpperCase();
-      if (!name) return nameScreen(opts, 'A first name, so the table knows who is staring.');
-      if (!opts.create && (code || '').length !== 4) return nameScreen(opts, 'Room codes are 4 characters.');
-      setName(name);
-      myName = name;
-      connect(opts.create ? { t: 'create', name } : { t: 'join', code, name }, opts);
+      const code = document.querySelector('#code').value.trim().toUpperCase();
+      if (!name()) return nameScreen({ ...opts, code }, 'A first name, so the table knows who is staring.');
+      if (code.length !== 4) return nameScreen(opts, 'Room codes are 4 characters.');
+      setName(name()); myName = name();
+      connect({ t: 'join', code, name: myName }, opts);
+    },
+    create: () => {
+      audio.unlock();
+      if (!name()) return nameScreen(opts, 'A first name, so the table knows who is staring.');
+      setName(name()); myName = name();
+      connect({ t: 'create', name: myName }, opts);
     },
   });
 }
@@ -112,7 +118,7 @@ const SCREENS = {
           <button class="ghost" data-a="rounds">${s.settings.rounds} rounds</button>
           <button class="ghost" data-a="pace">${s.settings.pace === 'demo' ? '⚡ demo pace' : 'standard pace'}</button>
         </div>
-        <button class="primary" data-a="start" ${s.players.length < 3 ? 'disabled' : ''}>${s.players.length < 3 ? 'Need 3+ players' : 'Start'}</button>`
+        <button class="primary" data-a="start" ${s.players.length < 2 ? 'disabled' : ''}>${s.players.length < 2 ? 'Need 2+ players' : 'Start'}</button>`
         : `<p class="muted center small">${s.settings.rounds} rounds · ${esc(s.settings.pace)} pace — waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
       <button class="ghost" data-a="stage">Use this device as a big screen</button>
     `);
@@ -260,8 +266,8 @@ const SCREENS = {
   splinter(s) {
     render(`
       <p class="kicker center">past tier 4</p>
-      <p class="lookup-msg">This is dyad territory.<br>Find a corner.</p>
-      <p class="muted center small">Two people, one phone, no room needed — Dyad mode from the home screen goes to Tier 5.</p>
+      <p class="lookup-msg">This is pair territory.<br>Find a corner.</p>
+      <p class="muted center small">Two people, one phone, no room needed — Local mode from the home screen goes to Tier 5.</p>
       <button data-a="back">Back to the table · Tier 4</button>
     `);
     bind({ back: () => act('splinterAck') });

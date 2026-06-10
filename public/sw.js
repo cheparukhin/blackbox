@@ -1,9 +1,9 @@
 // Cache-first shell so dyad mode runs with zero connectivity once loaded.
-const CACHE = 'blackbox-v2';
+const CACHE = 'blackbox-v3';
 const ASSETS = [
   '/', '/index.html', '/styles.css', '/deck.json',
   '/js/main.js', '/js/util.js', '/js/audio.js', '/js/storage.js', '/js/deck.js', '/js/tutorial.js',
-  '/js/scoring.js', '/js/stats.js', '/js/statsview.js', '/js/table.js', '/js/stage.js', '/js/dyad.js', '/js/fallback.js',
+  '/js/scoring.js', '/js/stats.js', '/js/statsview.js', '/js/table.js', '/js/stage.js', '/js/local.js',
 ];
 
 self.addEventListener('install', e => {

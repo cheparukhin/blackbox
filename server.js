@@ -107,7 +107,9 @@ function kOf(room) {
 }
 
 function drawProbe(room, tier) {
-  const ok = p => p.tier === tier && p.modes.includes('table');
+  // relational probes need at least two other players to point at
+  const ok = p => p.tier === tier && p.modes.includes('table') &&
+    (p.answerType !== 'relational' || room.players.length >= 3);
   let pool = DECK.filter(p => ok(p) && !room.used.has(p.id));
   if (!pool.length) { // tier exhausted: recycle, excluding the probe on the table
     for (const p of DECK) if (ok(p)) room.used.delete(p.id);
@@ -271,7 +273,7 @@ function handleAction(room, pid, a, d = {}) {
       }
       break;
     case 'start':
-      if (room.phase === 'lobby' && isCreator && room.players.length >= 3) startRound(room);
+      if (room.phase === 'lobby' && isCreator && room.players.length >= 2) startRound(room);
       break;
     case 'burn': // unlimited, costless, never logged; other phones just see "drawing…"
       if (room.phase === 'preview' && isSubject) {
@@ -452,7 +454,6 @@ wss.on('connection', ws => {
         send(ws, { t: 'joined', code: r.code, pid: existing.id });
       } else {
         if (r.phase !== 'lobby') return send(ws, { t: 'err', msg: 'Game in progress — rejoin with your original name.' });
-        if (r.players.length >= 6) return send(ws, { t: 'err', msg: 'Table is full (6).' });
         const pid = Math.random().toString(36).slice(2, 10);
         r.players.push({ id: pid, name, connected: true });
         r.sockets.set(pid, ws);

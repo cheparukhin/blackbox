@@ -4,16 +4,17 @@ Mobile-first web app for the in-person social game in [black-box-spec.md](black-
 score points by demonstrating you understand the person in front of you. One scoring
 engine (a strictly proper, all-positive Brier transform), two modes:
 
-- **Table mode (3–6)** — one phone per player, ephemeral 4-char rooms over a tiny
+- **Distributed (everyone's phone, 2+)** — ephemeral 4-char rooms over a tiny
   WebSocket relay. Every phone mirrors the one server-side state machine; the server
   filters each client's view so burns stay invisible, commits stay private until the
   reveal, and ballots stay anonymous forever. No host device required.
-- **Dyad mode (2)** — pure client-side pass-and-play on one phone. A service worker
-  caches the whole app, so once loaded it runs with zero connectivity. Tiers go to 5.
+- **Local (one phone, 2+)** — pure client-side pass-and-play: each predictor takes
+  the phone in turn and commits privately, so full scoring survives offline. A
+  service worker caches the whole app, so once loaded it runs with zero
+  connectivity. With exactly two players, tiers go to 5 (scale + free-form probes).
 
 Plus an optional **stage view** (`/?room=CODE&stage=1`, or "use this device as a big
-screen" in the lobby) and an **offline fallback table** (one phone, thumbs on zero)
-in case venue wifi dies.
+screen" in the lobby).
 
 ## Run
 
@@ -54,8 +55,8 @@ reclaim their seats. Dyad mode keeps working offline once a phone has loaded the
 - `public/js/scoring.js` — the proper scoring rule (shared verbatim by server & client)
 - `public/js/stats.js`, `statsview.js` — end-card math + rendering (Oracle, Open Book,
   Enigma, Boldest Call, Icarus, legibility delta, lifetime calibration)
-- `public/js/table.js` / `stage.js` — table-mode phone + big-screen mirrors
-- `public/js/dyad.js`, `fallback.js` — the offline modes
+- `public/js/table.js` / `stage.js` — distributed-mode phone + big-screen mirrors
+- `public/js/local.js` — the one-phone pass-and-play mode
 
 ## Before tonight (spec §13)
 

@@ -3,8 +3,7 @@ import { unlock, setSound, soundOn } from './audio.js';
 import { getName, getLocalSettings, setLocalSettings } from './storage.js';
 import { startTable } from './table.js';
 import { startStage } from './stage.js';
-import { startDyad } from './dyad.js';
-import { startFallback } from './fallback.js';
+import { startLocal } from './local.js';
 
 setSound(getLocalSettings().sounds !== false);
 
@@ -23,18 +22,15 @@ export function home() {
     <h1 class="brand center">BLACK BOX</h1>
     <p class="muted center small">Score points by demonstrating you understand the person in front of you.</p>
     <div class="spacer"></div>
-    <button class="primary" data-a="create">Start a table &nbsp;·&nbsp; 3–6 phones</button>
-    <button data-a="join">Join a table</button>
-    <button data-a="dyad">Dyad mode &nbsp;·&nbsp; 2 players, one phone</button>
+    <button class="primary" data-a="net">Everyone's phone &nbsp;·&nbsp; join a room</button>
+    <button data-a="local">One phone &nbsp;·&nbsp; pass it around</button>
+    <p class="muted center small">Any number of players. Two people go deepest.</p>
     <div class="spacer"></div>
-    <button class="ghost" data-a="fallback">Offline table &nbsp;·&nbsp; one phone, thumbs out</button>
     <button class="ghost" data-a="sound">Sounds: ${soundOn() ? 'on' : 'off'}</button>
   `);
   bind({
-    create: () => { unlock(); honesty(() => startTable({ create: true }, home)); },
-    join: () => { unlock(); honesty(() => startTable({ create: false, code: '' }, home)); },
-    dyad: () => { unlock(); honesty(() => startDyad(home)); },
-    fallback: () => { unlock(); honesty(() => startFallback(home)); },
+    net: () => { unlock(); honesty(() => startTable({}, home)); },
+    local: () => { unlock(); honesty(() => startLocal(home)); },
     sound: () => {
       const s = getLocalSettings();
       s.sounds = !(s.sounds !== false);
@@ -65,8 +61,7 @@ const roomCode = (params.get('room') || '').toUpperCase();
 if (roomCode && (params.has('stage') || params.has('display'))) {
   startStage(roomCode);
 } else if (roomCode) {
-  unlock; // gesture comes at the name screen
-  honesty(() => startTable({ create: false, code: roomCode }, home));
+  honesty(() => startTable({ code: roomCode }, home));
 } else {
   home();
 }
