@@ -21,8 +21,8 @@ node test/bots.mjs       # 3 self-playing bots (prints ROOM code) — join from 
 
 Browser verification uses the preview server in `.claude/launch.json` (name: `blackbox`).
 The preview reuses a running server — `pkill -f "node server.js"` first if server.js
-changed. Tests use `BB_COMMIT_SEC` / `BB_DEBRIEF_SEC` / `BB_ROUNDS` env overrides for
-fast timers; players never see these knobs.
+changed. Tests use `BB_COMMIT_SEC` / `BB_TRUTH_SEC` / `BB_DEBRIEF_SEC` / `BB_ROUNDS`
+env overrides for fast timers; players never see these knobs.
 
 ## Hard invariants — do not break casually
 

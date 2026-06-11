@@ -1,7 +1,7 @@
 // Optional big-screen stage — a read-only, landscape, large-type mirror of the
 // public state. Shows nothing private; the game never depends on it existing.
 
-import { render, bind, esc, probeText, everyFrame, clearTickers, secsLeft, tierLabel } from './util.js';
+import { render, bind, esc, probeText, everyFrame, clearTickers, secsLeft, tierLabel, fmtPts } from './util.js';
 import { CONF } from './scoring.js';
 import { statsCard } from './statsview.js';
 
@@ -51,18 +51,13 @@ const VIEWS = {
   preview(s) {
     render(`<p class="kicker">${esc(s.subjectName)} is choosing a question…</p>`, 'stage dead');
   },
-  probe(s) {
+  commit(s) {
     render(`
       <p class="kicker">${tierLabel(s.tier)} · ${esc(s.subjectName)}'s turn</p>
       <p class="probe-text">${esc(probeText(s.probe.text, s.subjectName))}</p>
-      <p class="kicker">${esc(s.subjectName)}, read it out loud</p>
-    `, 'stage');
-  },
-  commit(s) {
-    render(`
-      <p class="probe-text">${esc(probeText(s.probe.text, s.subjectName))}</p>
-      <div class="lock-huge">${s.lockCount ?? 0}/${s.predictorCount}</div>
-      <p class="kicker">locked in</p>
+      ${s.clockStarted
+        ? `<div class="lock-huge">${s.lockCount ?? 0}/${s.predictorCount}</div><p class="kicker">locked in</p>`
+        : `<p class="kicker">${esc(s.subjectName)}, read it out loud — guesses are open</p>`}
     `, 'stage');
     everyFrame(() => { if (last?.phase === 'commit') VIEWS.commit(last); }, 1000, 'commit');
   },
@@ -76,9 +71,22 @@ const VIEWS = {
     everyFrame(() => { if (last?.phase === 'reveal') VIEWS.reveal(last); }, 250, 'reveal');
   },
   truth(s) {
+    const tutorial = s.probe?.tier === 0;
+    const byPid = new Map((s.roundPts || []).map(r => [r.pid, r]));
     render(`
       <p class="kicker">${esc(s.subjectName)}'s answer</p>
       <div class="truth-big">${esc(s.truth)}</div>
+      <div class="grid">
+        ${(s.commits || []).map(c => {
+          const r = byPid.get(c.pid);
+          const cls = c.auto ? 'autopass' : r?.correct ? 'hit' : r?.correct === false ? 'miss' : '';
+          return `<div class="grid-row ${cls}">
+            <span class="name">${esc(c.name)}</span>
+            <span class="ans">${c.auto ? '—' : esc(c.answer)}</span>
+            <span class="conf">${c.auto ? 'no guess' : !tutorial && r ? fmtPts(r.pts) + ' pts' : ''}</span>
+          </div>`;
+        }).join('')}
+      </div>
       ${s.flavor ? `<p class="split-flag" style="font-size:2.4vw">${esc(s.flavor)}</p>` : ''}
     `, 'stage');
   },

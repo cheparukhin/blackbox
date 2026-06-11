@@ -62,7 +62,8 @@ const CODE_CHARS = 'ABCDEFGHJKMNPQRSTVWXYZ23456789'; // no ambiguous glyphs
 // is the tier ballot and the invisible burn, not settings screens. The one
 // knob is rounds. (BB_*_SEC env overrides exist for tests only.)
 const TIMERS = {
-  preview: 10, probe: 30, truth: 5, ballot: 25,
+  preview: 10, read: 30, ballot: 25,
+  truth: Number(process.env.BB_TRUTH_SEC) || 8,
   commit: Number(process.env.BB_COMMIT_SEC) || 15,
   debrief: Number(process.env.BB_DEBRIEF_SEC) || 90,
 };
@@ -88,7 +89,7 @@ function mkRoom() {
     phase: 'lobby', phaseStartedAt: Date.now(), phaseEndsAt: null, timer: null,
     tier: 1, round: -1, roundsPlayed: 0, roundsTotal: 0, // turns; set at start from rounds × players
     subjectIdx: -1, sinceBallot: 0,
-    probe: null, used: new Set(),
+    probe: null, used: new Set(), clockStarted: false,
     commits: new Map(),     // pid -> {answer, conf, auto}
     truth: null, truthConfirmed: false, roundPts: null, flavor: null, interim: null,
     votes: new Map(), ballotOutcome: null,
@@ -146,8 +147,7 @@ function setPhase(room, phase, secs = null) {
 
 function onTimeout(room) {
   switch (room.phase) {
-    case 'preview': toProbe(room); break;
-    case 'probe': toCommit(room); break;
+    case 'preview': toCommit(room); break;
     case 'commit': toReveal(room); break;
     case 'reveal': // subject vanished mid-reveal: score if truth is in, otherwise skip
       if (room.truth !== null) confirmTruth(room); else abandonRound(room); break;
@@ -177,8 +177,13 @@ function startRound(room) {
   setPhase(room, 'preview', tm(room).preview);
 }
 
-function toProbe(room) { setPhase(room, 'probe', tm(room).probe); }
-function toCommit(room) { setPhase(room, 'commit', tm(room).commit); }
+// One guessing phase: the question is live (and guessable) while the subject
+// reads it aloud; the subject's "ready" tap starts the short clock. The ceiling
+// covers a subject who never taps.
+function toCommit(room) {
+  room.clockStarted = false;
+  setPhase(room, 'commit', tm(room).read + tm(room).commit);
+}
 
 function maybeAdvanceCommit(room) {
   const preds = predictorsOf(room);
@@ -295,10 +300,16 @@ function handleAction(room, pid, a, d = {}) {
       }
       break;
     case 'keep':
-      if (room.phase === 'preview' && isSubject) toProbe(room);
+      if (room.phase === 'preview' && isSubject) toCommit(room);
       break;
-    case 'ready':
-      if (room.phase === 'probe' && isSubject) toCommit(room);
+    case 'ready': // subject finished reading aloud — start the short clock
+      if (room.phase === 'commit' && isSubject && !room.clockStarted) {
+        room.clockStarted = true;
+        room.phaseEndsAt = Date.now() + tm(room).commit * 1000;
+        clearTimeout(room.timer);
+        room.timer = setTimeout(() => onTimeout(room), room.phaseEndsAt - Date.now() + 60);
+        broadcast(room);
+      }
       break;
     case 'commit':
       if (room.phase === 'commit' && !isSubject && !room.commits.has(pid)) {
@@ -340,7 +351,7 @@ function handleAction(room, pid, a, d = {}) {
       }
       break;
     case 'skip': // any player may unstick a round whose subject dropped
-      if (['preview', 'probe', 'commit', 'reveal'].includes(room.phase) && !subjectOf(room)?.connected) abandonRound(room);
+      if (['preview', 'commit', 'reveal'].includes(room.phase) && !subjectOf(room)?.connected) abandonRound(room);
       break;
     case 'more':
       // exactly one more rotation from here — even after an early finish
@@ -353,7 +364,7 @@ function handleAction(room, pid, a, d = {}) {
 }
 
 // ---------- per-client views ----------
-const PROBE_PHASES = ['probe', 'commit', 'reveal', 'truth', 'debrief'];
+const PROBE_PHASES = ['commit', 'reveal', 'truth', 'debrief'];
 const COMMIT_PHASES = ['reveal', 'truth', 'debrief'];
 
 function stateFor(room, pid) {
@@ -383,6 +394,7 @@ function stateFor(room, pid) {
       ? { id: room.probe.id, text: room.probe.text, tier: room.probe.tier, answerType: room.probe.answerType, options: room.probe.options || null, tutorial: room.probe.tier === 0 }
       : null,
     lockCount: room.phase === 'commit' ? room.commits.size : null,
+    clockStarted: room.phase === 'commit' ? room.clockStarted : null,
     predictorCount: room.players.length ? room.players.length - 1 : 0,
     truthIn: room.truth !== null,
     truth: showTruth ? room.truth : null,

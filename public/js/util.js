@@ -36,6 +36,9 @@ export function flashScreen() {
   f.classList.remove('on');
   void f.offsetWidth;
   f.classList.add('on');
+  // drop the class once the animation is over — a throttled tab can pause CSS
+  // animations, and a paused flash is a stuck white overlay
+  setTimeout(() => f.classList.remove('on'), 600);
   try { navigator.vibrate?.(200); } catch {}
 }
 

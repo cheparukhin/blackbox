@@ -14,12 +14,21 @@ the person in front of you. The scoreboard licenses the staring; prediction accu
 rising over a session *is* the relationship forming.
 
 **Loop:** one player per turn is the subject. They privately preview the question and
-may **burn** it (free, unlimited, invisible) for another. They read it aloud. Everyone
-else locks a private guess about the subject's answer, with a confidence level; the
-subject locks their real answer. 3‑2‑1, everyone's guesses appear with names attached,
-the subject says their answer out loud, points flash, then phones go face down for a
-talk phase ("what made you guess that?" — whoever guessed differently goes first, the
-subject gets the last word). Next turn.
+may **burn** it (free, unlimited, invisible) for another. They read it aloud — the
+question is already live on every phone and guesses can lock immediately; the subject's
+"everyone heard it" tap just starts the short countdown for stragglers. Everyone else
+locks a private guess about the subject's answer, with a confidence level; the subject
+locks their real answer. 3‑2‑1, everyone's guesses appear with names attached, the
+subject says their answer out loud, the same grid gains the answer and points, then
+phones go face down for a talk phase ("what made you guess that?" — whoever guessed
+differently goes first, the subject gets the last word). Next turn.
+
+**Screens map to steps.** A phone changes screens only when the game advances to a
+genuinely new step: choose question → guess → reveal → talk → (vote). Within a step
+the same screen accumulates state — your locked guess stays visible with a counter,
+the reveal grid gains the truth and points, the ballot panel resolves in place. The
+deliberate exceptions, kept because they do physical choreography work, are the 3‑2‑1
+sting, the "Look up" dim while the subject speaks, and the face-down talk screen.
 
 **A round = one full rotation** — everyone takes one turn as the subject. The single
 lobby setting counts rounds (default 3, max 10). "Keep playing" at the end adds exactly
@@ -113,6 +122,9 @@ reaction when read aloud.
 | Dyad mode + offline thumbs fallback as separate modes | Merged into "local" — the dyad engine generalized to N players |
 | All-positive scoring | Wrong answers must visibly lose points (see Scoring) |
 | Per-rotation ballot on the final round | Voting to deepen a game that's ending reads as broken sequencing |
+| Separate "read it out loud" screen between choosing and guessing | Predictors stared at a question they couldn't act on; guessing now opens while the subject reads, and their tap just starts the countdown |
+| "X/Y locked in" dead screen after locking | Swapped your guess away mid-step; the question screen now keeps your locked pick plus a counter |
+| Truth flash as its own screen | A 5-second full-screen swap right after the grid; the answer and points now land on the guess grid itself |
 
 ## Robustness rules (each one was a shipped bug)
 

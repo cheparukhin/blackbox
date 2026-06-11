@@ -192,23 +192,19 @@ const SCREENS = {
     }
   },
 
-  probe(s) {
-    const mine = s.you?.isSubject;
-    render(`
-      <p class="kicker">${tierLabel(s.probe.tier)} · ${esc(s.subjectName)}'s turn</p>
-      <p class="probe-text">${esc(probeText(s.probe.text, s.subjectName))}</p>
-      <p class="${mine ? '' : 'muted'}">${mine ? 'Read it out loud to the table.' : `${esc(s.subjectName)}, read it out loud.`}</p>
-      ${mine ? `<button class="primary" data-a="ready">Everyone heard it — start the guessing</button>` : ''}
-      ${skipButton(s)}
-    `);
-    bind({ ready: () => act('ready'), skip: () => act('skip') });
-  },
-
   commit(s) {
-    const left = secsLeft(s.phaseEndsAt, offset) ?? 0;
-    if (left <= 5) cue('t' + left, audio.tick);
-    if (s.you?.isSubject) return commitSubject(s, left);
-    return commitPredictor(s, left);
+    // one screen for the whole guessing step: the question stays put while the
+    // header, buttons and lock counter advance around it
+    if (s.you?.isSubject) commitSubject(s);
+    else commitPredictor(s);
+    everyFrame(() => {
+      const st = lastState;
+      if (st?.phase !== 'commit' || !st.clockStarted) return;
+      const l = secsLeft(st.phaseEndsAt, offset) ?? 0;
+      if (l <= 5) cue('t' + l, audio.tick);
+      const el = document.querySelector('#cdown');
+      if (el) el.textContent = `${l}s`;
+    }, 500, 'commit');
   },
 
   reveal(s) {
@@ -227,10 +223,25 @@ const SCREENS = {
   },
 
   truth(s) {
+    // same grid as the reveal, now carrying the answer, hits and points —
+    // the step is "scored", not a new screen
     const mine = s.roundPts?.find(r => r.pid === myPid);
     const tutorial = s.probe?.tutorial;
     const scored = (s.roundPts || []).filter(r => !r.auto && r.correct !== null);
     const hits = scored.filter(r => r.correct).length;
+    const byPid = new Map((s.roundPts || []).map(r => [r.pid, r]));
+    const rows = (s.commits || []).map(c => {
+      const r = byPid.get(c.pid);
+      const cls = c.auto ? 'autopass' : r?.correct ? 'hit' : r?.correct === false ? 'miss' : '';
+      const mark = c.auto || !r || r.correct === null ? '' : r.correct ? '✓ ' : '✗ ';
+      const tail = c.auto ? 'no guess'
+        : [c.conf && CONF[c.conf] ? CONF[c.conf].label : null, !tutorial && r ? fmtPts(r.pts) + ' pts' : null].filter(Boolean).join(' · ');
+      return `<div class="grid-row ${cls}">
+        <span class="name">${mark}${esc(c.name)}</span>
+        <span class="ans">${c.auto ? '—' : esc(c.answer)}</span>
+        <span class="conf">${tail}</span>
+      </div>`;
+    }).join('');
     render(`
       <p class="kicker center">${esc(s.subjectName)}'s answer</p>
       <div class="truth-big">${esc(s.truth)}</div>
@@ -239,6 +250,7 @@ const SCREENS = {
         <p class="muted center small">${mine.auto ? 'Too slow — no guess, no points.' : mine.correct ? 'You guessed right.' : 'You guessed wrong.'}</p>` : `
         <div class="pts-huge ${hits > scored.length / 2 ? 'good' : ''}">${hits}/${scored.length}</div>
         <p class="muted center small">guessed you right</p>`}
+      <div class="grid">${rows}</div>
       ${s.flavor && !tutorial ? `<p class="split-flag">${esc(s.flavor)}</p>` : ''}
     `);
   },
@@ -276,16 +288,13 @@ const SCREENS = {
     everyFrame(() => { if (lastState?.phase === 'debrief' && debriefTools) SCREENS.debrief(lastState); }, 1000, 'debrief');
   },
 
+  // one screen for the whole vote step: buttons → "vote's in" → the outcome,
+  // all inside the same panel
   ballot(s) {
-    if (s.you?.voted) return deadScreen('your vote is in — waiting for the others', s);
-    render(`
-      <p class="kicker center">secret vote</p>
-      <p class="center">Ready to go deeper?<br>
-        <span class="muted small">Deep = confessions, secrets, who-at-this-table questions.</span></p>
-      <button class="primary" data-a="v" data-v="deepen">Go deep · the real stuff</button>
-      <button data-a="v" data-v="stay">Not yet · stay spicy</button>
-      <p class="ballot-note">Majority decides; nobody sees the votes. Any question can still be burned.</p>
-    `);
+    ballotShell(s.you?.voted
+      ? `<p class="muted center">Your vote is in — waiting for the others…</p>`
+      : `<button class="primary" data-a="v" data-v="deepen">Go deep · the real stuff</button>
+         <button data-a="v" data-v="stay">Not yet · stay spicy</button>`);
     bind({ v: d => act('vote', { v: d.v }) });
   },
 
@@ -293,7 +302,7 @@ const SCREENS = {
     const o = s.ballotOutcome || { dir: 'stay', tier: s.tier };
     const line = o.dir === 'deepen' ? `The table goes <b>deep</b>.`
       : `Staying <b>spicy</b> — for now.`;
-    render(`<p class="lookup-msg">${line}</p>${interimLine(s)}`, 'dead');
+    ballotShell(`<p class="lookup-msg">${line}</p>${interimLine(s)}`);
   },
 
   stats(s) {
@@ -306,63 +315,100 @@ const SCREENS = {
   },
 };
 
-// ---------- commit sub-screens ----------
-function commitPredictor(s, left) {
-  if (s.you.committed) return lockScreen(s);
+// ---------- the guessing screen ----------
+function commitHead(s, status) {
+  return `
+    <p class="kicker">${status}</p>
+    <p class="probe-text" style="font-size:20px">${esc(probeText(s.probe.text, s.subjectName))}</p>`;
+}
+
+function commitStatus(s) {
+  if (!s.clockStarted) return `${esc(s.subjectName)} is reading it out loud — guess when you're ready`;
+  return `<span id="cdown">${secsLeft(s.phaseEndsAt, offset) ?? 0}s</span> · what will ${esc(s.subjectName)} answer?`;
+}
+
+function lockLine(s, extra = '') {
+  return `<p class="muted center small">${extra}${s.lockCount ?? 0}/${s.predictorCount} guesses in — phone down till the reveal.</p>`;
+}
+
+function commitPredictor(s) {
   const p = s.probe;
+  if (s.you.committed) {
+    const c = s.you.commit;
+    const picked = p.answerType === 'scale'
+      ? `<div class="scale-row">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n =>
+          `<button class="${c?.answer === String(n) ? 'selected' : ''}" disabled>${n}</button>`).join('')}</div>`
+      : `<div class="options">${(p.options || ['Yes', 'No']).map(o =>
+          `<button class="${c?.answer === o ? 'selected' : ''}" disabled>${esc(o)}</button>`).join('')}</div>`;
+    render(`
+      ${commitHead(s, commitStatus(s))}
+      ${picked}
+      ${lockLine(s, `Locked${c?.conf && CONF[c.conf] ? ' · ' + CONF[c.conf].label : ''} · `)}
+      ${skipButton(s)}
+    `);
+    bind({ skip: () => act('skip') });
+    return;
+  }
   if (p.answerType === 'scale') {
     // two-step like every other type: pick, then lock — no irreversible mis-taps
     render(`
-      <p class="kicker">${left}s · what will ${esc(s.subjectName)} answer?</p>
-      <p class="probe-text" style="font-size:20px">${esc(probeText(p.text, s.subjectName))}</p>
+      ${commitHead(s, commitStatus(s))}
       <p class="muted small">Your guess, 1 to 10 — within one of their number scores points.</p>
       <div class="scale-row">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n =>
         `<button class="${pendingAnswer === String(n) ? 'selected' : ''}" data-a="ans" data-o="${n}">${n}</button>`).join('')}</div>
       ${pendingAnswer !== null ? `<button class="primary" data-a="lock">Lock it in · ${esc(pendingAnswer)}</button>` : ''}
+      ${skipButton(s)}
     `);
     bind({
-      ans: d => { pendingAnswer = d.o; commitPredictor(lastState, secsLeft(lastState.phaseEndsAt, offset) ?? 0); },
+      ans: d => { pendingAnswer = d.o; commitPredictor(lastState); },
       lock: () => act('commit', { answer: pendingAnswer }),
+      skip: () => act('skip'),
     });
   } else {
     const opts = p.options || ['Yes', 'No'];
     render(`
-      <p class="kicker">${left}s · what will ${esc(s.subjectName)} answer?</p>
-      <p class="probe-text" style="font-size:20px">${esc(probeText(p.text, s.subjectName))}</p>
+      ${commitHead(s, commitStatus(s))}
       <div class="options">
         ${opts.map(o => `<button class="${pendingAnswer === o ? 'selected' : ''}" data-a="ans" data-o="${esc(o)}">${esc(o)}</button>`).join('')}
       </div>
       ${pendingAnswer !== null ? `
         <p class="kicker">how sure are you?</p>
         <div class="conf-list">${confButtons(p)}</div>` : ''}
+      ${skipButton(s)}
     `);
     bind({
-      ans: d => {
-        pendingAnswer = d.o;
-        commitPredictor(lastState, secsLeft(lastState.phaseEndsAt, offset) ?? 0);
-      },
+      ans: d => { pendingAnswer = d.o; commitPredictor(lastState); },
       conf: d => act('commit', { answer: pendingAnswer, conf: d.c }),
+      skip: () => act('skip'),
     });
   }
-  everyFrame(() => {
-    if (lastState?.phase === 'commit' && !lastState.you?.committed) {
-      const l = secsLeft(lastState.phaseEndsAt, offset) ?? 0;
-      if (l <= 5) cue('t' + l, audio.tick);
-      const k = document.querySelector('.kicker');
-      if (k) k.textContent = `${l}s · what will ${lastState.subjectName} answer?`;
-    }
-  }, 500, 'commit');
 }
 
-function commitSubject(s, left) {
-  if (s.you.truth !== null) return lockScreen(s, 'Your answer is in. You’ll say it out loud in a moment.');
+function commitSubject(s) {
+  if (!s.clockStarted) {
+    render(`
+      ${commitHead(s, `${tierLabel(s.probe.tier)} · your turn`)}
+      <p>Read it out loud to the table.</p>
+      <button class="primary" data-a="ready">Everyone heard it — start the countdown</button>
+      <p class="muted center small">They can already lock guesses; the countdown starts when you tap.</p>
+    `);
+    bind({ ready: () => act('ready') });
+    return;
+  }
+  if (s.you.truth === null) {
+    render(`
+      ${commitHead(s, `<span id="cdown">${secsLeft(s.phaseEndsAt, offset) ?? 0}s</span> · your real answer, honestly`)}
+      <p class="muted small">Only you can see this. After everyone locks their guess, you'll say it out loud.</p>
+      ${truthInput(s.probe)}
+    `);
+    bind({ t: d => act('truth', { answer: d.o }) });
+    return;
+  }
   render(`
-    <p class="kicker">${left}s · your real answer, honestly</p>
-    <p class="probe-text" style="font-size:20px">${esc(probeText(s.probe.text, s.you.name))}</p>
-    <p class="muted small">Only you can see this. After everyone locks their guess, you'll say it out loud.</p>
-    ${truthInput(s.probe)}
+    ${commitHead(s, `<span id="cdown">${secsLeft(s.phaseEndsAt, offset) ?? 0}s</span> · waiting for their guesses`)}
+    <p class="muted center small">Your answer is in — you'll say it out loud in a moment.</p>
+    ${lockLine(s)}
   `);
-  bind({ t: d => act('truth', { answer: d.o }) });
 }
 
 function truthInput(probe) {
@@ -371,12 +417,14 @@ function truthInput(probe) {
   return `<div class="options">${opts.map(o => `<button data-a="t" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
 }
 
-function lockScreen(s, note = '') {
-  const c = s.you?.commit;
+function ballotShell(body) {
   render(`
-    <div class="dead-big">${s.lockCount ?? 0}/${s.predictorCount}<br>locked in</div>
-    <p class="dead-hint">${esc(note) || (c ? `your guess: ${esc(c.answer)}${c.conf && CONF[c.conf] ? ' · ' + CONF[c.conf].label : ''}` : 'locked · phone down')}</p>
-  `, 'dead');
+    <p class="kicker center">secret vote</p>
+    <p class="center">Ready to go deeper?<br>
+      <span class="muted small">Deep = confessions, secrets, who-at-this-table questions.</span></p>
+    ${body}
+    <p class="ballot-note">Majority decides; nobody sees the votes. Any question can still be burned.</p>
+  `);
 }
 
 function interimLine(s) {
@@ -457,7 +505,7 @@ function deadScreen(hint, s) {
 
 function skipButton(s) {
   // a dropped player never blocks a round
-  if (s && s.subjectConnected === false && ['preview', 'probe', 'commit', 'reveal'].includes(s.phase)) {
+  if (s && s.subjectConnected === false && ['preview', 'commit', 'reveal'].includes(s.phase)) {
     return `<button class="ghost" data-a="skip">${esc(s.subjectName)} dropped — skip this round</button>`;
   }
   return '';

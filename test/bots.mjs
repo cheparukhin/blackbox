@@ -45,15 +45,15 @@ function react(bot) {
     });
   } else if (s.phase === 'preview' && me.isSubject) {
     once(bot, key, 1500, () => act(bot, 'keep'));
-  } else if (s.phase === 'probe' && me.isSubject) {
-    once(bot, key, 2000, () => act(bot, 'ready'));
   } else if (s.phase === 'commit') {
     const pick = () => {
       if (s.probe?.answerType === 'scale') return String(1 + Math.floor(Math.random() * 10));
       const opts = s.probe?.options || ['Yes', 'No'];
       return opts[Math.floor(Math.random() * opts.length)];
     };
-    if (me.isSubject && !s.truthIn) {
+    if (me.isSubject && !s.clockStarted) {
+      once(bot, key + 'r', 2000, () => act(bot, 'ready'));
+    } else if (me.isSubject && !s.truthIn) {
       once(bot, key + 't', 1200, () => act(bot, 'truth', { answer: pick() }));
     } else if (!me.isSubject && !me.committed) {
       once(bot, key, 800 + Math.random() * 2000, () => {
@@ -69,7 +69,7 @@ function react(bot) {
     once(bot, key, 2000 + Math.random() * 2000, () => act(bot, 'vote', { v: Math.random() < 0.7 ? 'deepen' : 'stay' }));
   } else if (s.phase === 'stats' && me.isCreator) {
     once(bot, key, 15000, () => act(bot, 'more'));
-  } else if (['preview', 'probe', 'commit', 'reveal'].includes(s.phase) && s.subjectConnected === false && me.isCreator) {
+  } else if (['preview', 'commit', 'reveal'].includes(s.phase) && s.subjectConnected === false && me.isCreator) {
     once(bot, key + 'skip', 5000, () => act(bot, 'skip'));
   }
 }

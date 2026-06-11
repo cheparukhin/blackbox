@@ -15,7 +15,7 @@ const assert = (cond, msg) => {
 };
 
 const server = spawn(process.execPath, ['server.js'], {
-  env: { ...process.env, PORT, BB_COMMIT_SEC: '5', BB_DEBRIEF_SEC: '2' },
+  env: { ...process.env, PORT, BB_COMMIT_SEC: '5', BB_DEBRIEF_SEC: '2', BB_TRUTH_SEC: '1' },
   stdio: ['ignore', 'ignore', 'inherit'], // surface server crashes
 });
 await new Promise(r => setTimeout(r, 600));
@@ -81,19 +81,25 @@ try {
     subject.act('burn');
     await new Promise(r => setTimeout(r, 150));
     subject.act('keep');
-    await subject.waitPhase('probe');
-    subject.act('ready');
-    await alice.waitPhase('commit');
+    const cs = await subject.waitPhase('commit');
+    assert(cs.clockStarted === false, 'guessing opens while the subject reads aloud');
 
     const probe = subject.state.probe;
     const isScale = probe.answerType === 'scale';
     const opts = probe.options || ['Yes', 'No'];
+    // one guess lands before the subject starts the countdown
+    if (isScale) preds[0].act('commit', { answer: '7' });
+    else preds[0].act('commit', { answer: opts[0], conf: 'damnsure' });
+    await new Promise(r => setTimeout(r, 150));
+    assert(preds[0].state?.you?.committed === true, 'a guess can lock before the countdown starts');
+
+    subject.act('ready');
+    await new Promise(r => setTimeout(r, 150));
+    assert(subject.state?.clockStarted === true, "subject's tap starts the countdown");
     if (isScale) {
-      preds[0].act('commit', { answer: '7' });
       preds[1].act('commit', { answer: '2' });
       subject.act('truth', { answer: '7' });
     } else {
-      preds[0].act('commit', { answer: opts[0], conf: 'damnsure' });
       preds[1].act('commit', { answer: opts[1], conf: 'lean' });
       subject.act('truth', { answer: opts[0] });
     }
