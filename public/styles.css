@@ -143,9 +143,10 @@ textarea { min-height: 90px; resize: none; }
 .num-label {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-  padding: 10px 14px; color: var(--dim); font-weight: 600; font-size: 16px; flex: 1;
+  padding: 10px 14px; color: var(--dim); font-weight: 600; font-size: 16px;
   min-height: 58px;
 }
+.btn-row .num-label { flex: 1; } /* share width in a row; never grow vertically in a column */
 .num-label input {
   border: 1px solid var(--line); background: var(--panel2); width: 72px; height: 38px;
   font-size: 18px; font-weight: 700; text-align: center; color: var(--ink);
