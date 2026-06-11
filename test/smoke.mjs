@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import WebSocket from 'ws';
 import { scoreChoice } from '../public/js/scoring.js';
 
-const PORT = 3199;
+const PORT = 3100 + (process.pid % 500); // unique per run — back-to-back runs must not share a port
 const log = (...a) => console.log('[smoke]', ...a);
 let failed = false;
 const assert = (cond, msg) => {
@@ -16,7 +16,7 @@ const assert = (cond, msg) => {
 
 const server = spawn(process.execPath, ['server.js'], {
   env: { ...process.env, PORT, BB_COMMIT_SEC: '5', BB_DEBRIEF_SEC: '2' },
-  stdio: 'ignore',
+  stdio: ['ignore', 'ignore', 'inherit'], // surface server crashes
 });
 await new Promise(r => setTimeout(r, 600));
 
@@ -92,10 +92,10 @@ try {
     // preds[2] never commits → timeout auto-pass
     subject.act('truth', { answer: opts[0] });
 
-    await alice.waitPhase('reveal', 15000); // demo-pace commit timer is 10s
-    assert(preds[0].state.commits?.length === 3, 'reveal grid carries all predictors');
-    const auto = preds[0].state.commits.find(c => c.auto);
-    assert(!!auto, 'missing commit became an auto-pass');
+    // wait on the same client we read from — each socket syncs independently
+    const rs = await preds[0].waitPhase('reveal', 15000); // demo-pace commit timer is 10s
+    assert(rs.commits?.length === 3, 'reveal grid carries all predictors');
+    assert(!!rs.commits.find(c => c.auto), 'missing commit became an auto-pass');
 
     subject.act('confirmTruth');
     const ts = await preds[0].waitPhase('truth');

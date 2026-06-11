@@ -11,7 +11,6 @@ import { statsCard } from './statsview.js';
 let ws = null, myPid = null, myName = '', joinedCode = null, onExit = null;
 let offset = 0, lastState = null, prevPhase = null;
 let played = new Set();      // sound cues fired for current phase instance
-let phaseKey = '';
 let peekUntil = 0;           // reveal-grid peek
 let debriefTools = false;
 let pendingAnswer = null;    // commit input in progress
@@ -20,6 +19,12 @@ let sessionSaved = false;
 
 export function startTable(opts, exit) {
   onExit = exit;
+  // fresh module state — a second session on the same page must not inherit
+  // the previous game's phase, peeks, or calibration high-water mark
+  myPid = null; myName = ''; joinedCode = null;
+  lastState = null; prevPhase = null; played = new Set();
+  peekUntil = 0; debriefTools = false; pendingAnswer = null;
+  calibRecorded = -1; sessionSaved = false;
   nameScreen(opts);
 }
 
@@ -92,7 +97,6 @@ function paint(s) {
   if (s.phase !== prevPhase) {
     onTransition(prevPhase, s.phase, s);
     prevPhase = s.phase;
-    phaseKey = s.phase + ':' + s.phaseStartedAt;
     played = new Set();
     peekUntil = 0; debriefTools = false; pendingAnswer = null;
   }
@@ -164,7 +168,7 @@ const SCREENS = {
         </div>
       `);
       bind({ burn: () => act('burn'), keep: () => act('keep') });
-      everyFrame(() => { if (lastState?.phase === 'preview') paintBarOnly(total); });
+      everyFrame(() => { if (lastState?.phase === 'preview') paintBarOnly(total); }, 250, 'preview');
     } else {
       deadScreen(`${s.subjectName} is choosing a question…`, s);
     }
@@ -201,7 +205,7 @@ const SCREENS = {
     } else {
       lookupScreen(s);
     }
-    everyFrame(() => { if (lastState?.phase === 'reveal') SCREENS.reveal(lastState); }, 250);
+    everyFrame(() => { if (lastState?.phase === 'reveal') SCREENS.reveal(lastState); }, 250, 'reveal');
   },
 
   truth(s) {
@@ -240,13 +244,15 @@ const SCREENS = {
         <button class="ghost" data-a="end">Next round</button>
       </div>
       <button class="ghost" data-a="down">back face down</button>
+      ${s.you?.isCreator ? `<button class="ghost" data-a="finish">End the game — see results</button>` : ''}
     `, 'dead facedown');
     bind({
       ext: () => act('extendDebrief'),
       end: () => act('endDebrief'),
       down: () => { debriefTools = false; SCREENS.debrief(lastState); },
+      finish: () => act('finish'),
     });
-    everyFrame(() => { if (lastState?.phase === 'debrief' && debriefTools) SCREENS.debrief(lastState); }, 1000);
+    everyFrame(() => { if (lastState?.phase === 'debrief' && debriefTools) SCREENS.debrief(lastState); }, 1000, 'debrief');
   },
 
   ballot(s) {
@@ -308,7 +314,7 @@ function commitPredictor(s, left) {
       const k = document.querySelector('.kicker');
       if (k) k.textContent = `${l}s · what will ${lastState.subjectName} answer?`;
     }
-  }, 500);
+  }, 500, 'commit');
 }
 
 function commitSubject(s, left) {

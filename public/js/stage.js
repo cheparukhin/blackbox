@@ -58,7 +58,7 @@ const VIEWS = {
       <div class="lock-huge">${s.lockCount ?? 0}/${s.predictorCount}</div>
       <p class="kicker">locked in</p>
     `, 'stage');
-    everyFrame(() => { if (last?.phase === 'commit') VIEWS.commit(last); }, 1000);
+    everyFrame(() => { if (last?.phase === 'commit') VIEWS.commit(last); }, 1000, 'commit');
   },
   reveal(s) {
     const elapsed = Date.now() + offset - s.phaseStartedAt;
@@ -67,7 +67,7 @@ const VIEWS = {
     } else {
       grid(s, `${esc(s.subjectName)}, say your real answer out loud.`);
     }
-    everyFrame(() => { if (last?.phase === 'reveal') VIEWS.reveal(last); }, 250);
+    everyFrame(() => { if (last?.phase === 'reveal') VIEWS.reveal(last); }, 250, 'reveal');
   },
   truth(s) {
     render(`
@@ -82,7 +82,7 @@ const VIEWS = {
       <p class="kicker">talk — what made you guess that? · ${esc(s.subjectName)} gets the last word</p>
       <div class="countdown-huge" style="font-size:14vw">${left ?? ''}</div>
     `, 'stage');
-    everyFrame(() => { if (last?.phase === 'debrief') VIEWS.debrief(last); }, 1000);
+    everyFrame(() => { if (last?.phase === 'debrief') VIEWS.debrief(last); }, 1000, 'debrief');
   },
   ballot(s) {
     render(`<p class="lookup-msg">Secret vote on your phones:</p><p class="kicker">ready to go deeper?</p>`, 'stage dead');

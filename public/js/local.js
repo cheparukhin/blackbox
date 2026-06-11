@@ -126,7 +126,7 @@ function previewScreen() {
   everyFrame(() => {
     if (Date.now() >= deadline) keep();
     else { const f = document.querySelector('.bar-fill'); if (f) f.style.width = `${((deadline - Date.now()) / 50)}%`; }
-  }, 200);
+  }, 200, 'preview');
 }
 
 function toPredictor(i) {
@@ -274,7 +274,7 @@ function debriefScreen() {
   everyFrame(() => {
     if (Date.now() >= endsAt.t) finish();
     else { const h = document.querySelector('#dleft'); if (h) h.textContent = `${Math.ceil((endsAt.t - Date.now()) / 1000)}s · ${hint}`; }
-  }, 500);
+  }, 500, 'debrief');
 }
 
 function nextOrBallot() {
@@ -325,11 +325,17 @@ function resolveBallot() {
 function statsScreen() {
   clearTickers();
   const st = computeStats(S.history, S.players, false);
-  // per-device calibration: everyone predicted on this phone tonight
-  recordCalibration(S.history.flatMap(h => h.preds.filter(p => p.conf).map(p => ({ conf: p.conf, correct: p.correct }))));
-  saveSession({ mode: 'local', rounds: S.scored, players: S.players.map(p => p.name) });
+  // per-device calibration: everyone predicted on this phone tonight.
+  // Record only rounds added since the last visit — "Keep playing" returns here.
+  const fresh = S.history.slice(S.calibFrom || 0);
+  recordCalibration(fresh.flatMap(h => h.preds.filter(p => p.conf).map(p => ({ conf: p.conf, correct: p.correct }))));
+  S.calibFrom = S.history.length;
+  if (!S.sessionSaved) {
+    S.sessionSaved = true;
+    saveSession({ mode: 'local', rounds: S.scored, players: S.players.map(p => p.name) });
+  }
   render(`
-    ${statsCard(st, { calibration: getCalibration(), title: 'the box opens' })}
+    ${statsCard(st, { calibration: getCalibration() })}
     <button class="primary" data-a="more">Keep playing · ${S.n <= 2 ? '2 more rounds' : 'one more round each'}</button>
     <button class="ghost" data-a="done">Done</button>
   `);

@@ -271,10 +271,10 @@ function handleAction(room, pid, a, d = {}) {
     case 'start':
       if (room.phase === 'lobby' && isCreator && room.players.length >= 2) startRound(room);
       break;
-    case 'burn': // unlimited, costless, never logged; other phones just see "drawing…"
+    case 'burn': // unlimited, costless, never logged; other phones just see "choosing…"
       if (room.phase === 'preview' && isSubject) {
         room.probe = drawProbe(room, room.round === 0 ? 0 : room.tier);
-        setPhase(room, 'preview', 8);
+        setPhase(room, 'preview', tm(room).preview);
       }
       break;
     case 'keep':

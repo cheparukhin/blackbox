@@ -38,15 +38,20 @@ export function flashScreen() {
   try { navigator.vibrate?.(200); } catch {}
 }
 
-let tickers = [];
-export function everyFrame(fn, ms = 250) {
+// Keyed tickers: screen renderers re-invoke themselves from their own tick
+// callback, so registration MUST be idempotent per key or intervals double
+// every tick (measured: 270k live intervals 10s into one reveal).
+let tickers = new Map();
+export function everyFrame(fn, ms = 250, key) {
+  const k = key ?? Symbol('tick');
+  if (tickers.has(k)) return () => {};
   const id = setInterval(fn, ms);
-  tickers.push(id);
-  return () => clearInterval(id);
+  tickers.set(k, id);
+  return () => { clearInterval(id); tickers.delete(k); };
 }
 export function clearTickers() {
-  for (const id of tickers) clearInterval(id);
-  tickers = [];
+  for (const id of tickers.values()) clearInterval(id);
+  tickers = new Map();
 }
 
 export function secsLeft(endsAt, offset = 0) {
