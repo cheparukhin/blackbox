@@ -92,6 +92,11 @@ export function confButtons(probe) {
 }
 
 // Two levels only: the game starts spicy and can go deep — that's it.
+// 1–10 answer buttons for scale questions, shared by both modes.
+export function scaleRow(action) {
+  return `<div class="scale-row">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button data-a="${action}" data-o="${n}">${n}</button>`).join('')}</div>`;
+}
+
 export const TIER_NAMES = { 0: 'Warm-up', 1: 'Spicy', 2: 'Deep' };
 export const TIER_TAGLINES = { 1: 'worth gossiping about', 2: 'the real stuff' };
 export function tierLabel(t) { return TIER_NAMES[t] || ''; }

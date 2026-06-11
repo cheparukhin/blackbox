@@ -9,7 +9,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { scoreChoice, scoreAbstain, CONF } from './public/js/scoring.js';
+import { scoreChoice, scoreAbstain, scoreScale, CONF } from './public/js/scoring.js';
 import { computeStats, roundFlavor, interimStats } from './public/js/stats.js';
 import { TUTORIAL } from './public/js/tutorial.js';
 
@@ -69,7 +69,9 @@ const PACE = {
   },
   demo: { preview: 5, probe: 20, truth: 3, ballot: 15, commit: 10, debrief: 25 },
 };
-const DEFAULT_ROUNDS = Number(process.env.BB_ROUNDS) || 12;
+// A round = everyone takes one turn as the subject. The setting counts rounds
+// (rotations); roundsTotal/roundsPlayed are turns, internal bookkeeping.
+const DEFAULT_ROUNDS = Number(process.env.BB_ROUNDS) || 3;
 const tm = room => PACE[room.settings.pace] || PACE.standard;
 
 function newCode() {
@@ -87,7 +89,7 @@ function mkRoom() {
     stages: new Set(),      // ws
     settings: { rounds: DEFAULT_ROUNDS, pace: 'standard' },
     phase: 'lobby', phaseStartedAt: Date.now(), phaseEndsAt: null, timer: null,
-    tier: 1, round: -1, roundsPlayed: 0, roundsTotal: DEFAULT_ROUNDS,
+    tier: 1, round: -1, roundsPlayed: 0, roundsTotal: 0, // turns; set at start from rounds × players
     subjectIdx: -1, sinceBallot: 0,
     probe: null, used: new Set(),
     commits: new Map(),     // pid -> {answer, conf, auto}
@@ -110,8 +112,9 @@ function kOf(room) {
 }
 
 function drawProbe(room, tier) {
+  // same deck as local mode, minus free-form (typing on a 15s parallel timer);
   // relational probes need at least two other players to point at
-  const ok = p => p.tier === tier && p.modes.includes('table') &&
+  const ok = p => p.tier === tier && p.answerType !== 'freeform' &&
     (p.answerType !== 'relational' || room.players.length >= 3);
   let pool = DECK.filter(p => ok(p) && !room.used.has(p.id));
   if (!pool.length) { // tier exhausted: recycle, excluding the probe on the table
@@ -199,7 +202,11 @@ function confirmTruth(room) {
     const c = room.commits.get(p.id) || { answer: null, conf: null, auto: true };
     let pts, correct = null, conf = c.conf;
     if (c.auto || c.answer === null) {
-      pts = scoreAbstain(k); conf = null;
+      pts = scoreAbstain(); conf = null;
+    } else if (room.probe.answerType === 'scale') {
+      correct = Math.abs(Number(c.answer) - Number(room.truth)) <= 1;
+      pts = scoreScale(Number(c.answer), Number(room.truth));
+      conf = null;
     } else {
       correct = c.answer === room.truth;
       pts = scoreChoice(conf, correct, k);
@@ -263,13 +270,16 @@ function handleAction(room, pid, a, d = {}) {
     case 'settings':
       if (room.phase === 'lobby' && isCreator) {
         const r = Math.round(Number(d.rounds));
-        if (Number.isFinite(r) && r >= 1) { room.settings.rounds = Math.min(50, r); room.roundsTotal = room.settings.rounds; }
+        if (Number.isFinite(r) && r >= 1) room.settings.rounds = Math.min(10, r);
         if (['standard', 'demo'].includes(d.pace)) room.settings.pace = d.pace;
         broadcast(room);
       }
       break;
     case 'start':
-      if (room.phase === 'lobby' && isCreator && room.players.length >= 2) startRound(room);
+      if (room.phase === 'lobby' && isCreator && room.players.length >= 2) {
+        room.roundsTotal = room.settings.rounds * room.players.length;
+        startRound(room);
+      }
       break;
     case 'burn': // unlimited, costless, never logged; other phones just see "choosing…"
       if (room.phase === 'preview' && isSubject) {
@@ -285,8 +295,9 @@ function handleAction(room, pid, a, d = {}) {
       break;
     case 'commit':
       if (room.phase === 'commit' && !isSubject && !room.commits.has(pid)) {
-        const conf = CONF[d.conf] ? d.conf : 'pass';
+        const conf = room.probe?.answerType === 'scale' ? null : (CONF[d.conf] ? d.conf : 'pass');
         if (d.answer == null) break;
+        if (room.probe?.answerType === 'scale' && !(Number(d.answer) >= 1 && Number(d.answer) <= 10)) break;
         room.commits.set(pid, { answer: String(d.answer), conf, auto: false });
         maybeAdvanceCommit(room);
         broadcast(room);
@@ -294,6 +305,7 @@ function handleAction(room, pid, a, d = {}) {
       break;
     case 'truth':
       if (['commit', 'reveal'].includes(room.phase) && isSubject && !room.truthConfirmed && d.answer != null) {
+        if (room.probe?.answerType === 'scale' && !(Number(d.answer) >= 1 && Number(d.answer) <= 10)) break;
         room.truth = String(d.answer);
         if (room.phase === 'commit') maybeAdvanceCommit(room);
         broadcast(room);

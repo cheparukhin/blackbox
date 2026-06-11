@@ -2,7 +2,7 @@
 // state into the choreography: buzz on commit, 3-2-1 sting, grid, auto-dim
 // "look up", face-down debrief, anonymous ballots.
 
-import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, confButtons, fmtPts } from './util.js';
+import { render, bind, esc, probeText, flashScreen, everyFrame, clearTickers, secsLeft, timerBar, tierLabel, confButtons, fmtPts, scaleRow } from './util.js';
 import { CONF } from './scoring.js';
 import * as audio from './audio.js';
 import { getName, setName, recordCalibration, saveSession, getCalibration } from './storage.js';
@@ -130,12 +130,13 @@ const SCREENS = {
       ${isCreator ? `
         <div class="btn-row">
           <label class="num-label">Rounds
-            <input type="number" id="rounds" min="1" max="50" inputmode="numeric" value="${s.settings.rounds}">
+            <input type="number" id="rounds" min="1" max="10" inputmode="numeric" value="${s.settings.rounds}">
           </label>
           <button class="ghost" data-a="pace">${s.settings.pace === 'demo' ? '⚡ demo pace' : 'standard pace'}</button>
         </div>
+        <p class="muted center small">A round = everyone takes one turn as the subject.</p>
         <button class="primary" data-a="start" ${s.players.length < 2 ? 'disabled' : ''}>${s.players.length < 2 ? 'Need 2+ players' : 'Start'}</button>`
-        : `<p class="muted center small">${s.settings.rounds} rounds · ${esc(s.settings.pace)} pace — waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
+        : `<p class="muted center small">${s.settings.rounds} round${s.settings.rounds === 1 ? '' : 's'} · ${esc(s.settings.pace)} pace — waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
       <button class="ghost" data-a="stage">Use this device as a big screen</button>
     `);
     document.querySelector('#rounds')?.addEventListener('change', e => {
@@ -177,7 +178,7 @@ const SCREENS = {
   probe(s) {
     const mine = s.you?.isSubject;
     render(`
-      <p class="kicker">${tierLabel(s.probe.tier)} · this round is about ${esc(s.subjectName)}</p>
+      <p class="kicker">${tierLabel(s.probe.tier)} · ${esc(s.subjectName)}'s turn</p>
       <p class="probe-text">${esc(probeText(s.probe.text, s.subjectName))}</p>
       <p class="${mine ? '' : 'muted'}">${mine ? 'Read it out loud to the table.' : `${esc(s.subjectName)}, read it out loud.`}</p>
       ${mine ? `<button class="primary" data-a="ready">Everyone heard it — start the guessing</button>` : ''}
@@ -278,7 +279,7 @@ const SCREENS = {
   stats(s) {
     render(`
       ${statsCard(s.statsData, { calibration: getCalibration() })}
-      <button class="primary" data-a="more">Keep playing — one more round each</button>
+      <button class="primary" data-a="more">Keep playing · one more round</button>
       <button class="ghost" data-a="leave">Leave</button>
     `);
     bind({ more: () => act('more'), leave: () => { try { ws.close(); } catch {} joinedCode = null; onExit(); } });
@@ -289,24 +290,34 @@ const SCREENS = {
 function commitPredictor(s, left) {
   if (s.you.committed) return lockScreen(s);
   const p = s.probe;
-  const opts = p.options || ['Yes', 'No'];
-  render(`
-    <p class="kicker">${left}s · what will ${esc(s.subjectName)} answer?</p>
-    <p class="probe-text" style="font-size:20px">${esc(probeText(p.text, s.subjectName))}</p>
-    <div class="options">
-      ${opts.map(o => `<button class="${pendingAnswer === o ? 'selected' : ''}" data-a="ans" data-o="${esc(o)}">${esc(o)}</button>`).join('')}
-    </div>
-    ${pendingAnswer !== null ? `
-      <p class="kicker">how sure are you?</p>
-      <div class="conf-list">${confButtons(p)}</div>` : ''}
-  `);
-  bind({
-    ans: d => {
-      pendingAnswer = d.o;
-      commitPredictor(lastState, secsLeft(lastState.phaseEndsAt, offset) ?? 0);
-    },
-    conf: d => act('commit', { answer: pendingAnswer, conf: d.c }),
-  });
+  if (p.answerType === 'scale') {
+    render(`
+      <p class="kicker">${left}s · what will ${esc(s.subjectName)} answer?</p>
+      <p class="probe-text" style="font-size:20px">${esc(probeText(p.text, s.subjectName))}</p>
+      <p class="muted small">Your guess, 1 to 10 — within one of their number scores points.</p>
+      ${scaleRow('ans')}
+    `);
+    bind({ ans: d => act('commit', { answer: d.o }) });
+  } else {
+    const opts = p.options || ['Yes', 'No'];
+    render(`
+      <p class="kicker">${left}s · what will ${esc(s.subjectName)} answer?</p>
+      <p class="probe-text" style="font-size:20px">${esc(probeText(p.text, s.subjectName))}</p>
+      <div class="options">
+        ${opts.map(o => `<button class="${pendingAnswer === o ? 'selected' : ''}" data-a="ans" data-o="${esc(o)}">${esc(o)}</button>`).join('')}
+      </div>
+      ${pendingAnswer !== null ? `
+        <p class="kicker">how sure are you?</p>
+        <div class="conf-list">${confButtons(p)}</div>` : ''}
+    `);
+    bind({
+      ans: d => {
+        pendingAnswer = d.o;
+        commitPredictor(lastState, secsLeft(lastState.phaseEndsAt, offset) ?? 0);
+      },
+      conf: d => act('commit', { answer: pendingAnswer, conf: d.c }),
+    });
+  }
   everyFrame(() => {
     if (lastState?.phase === 'commit' && !lastState.you?.committed) {
       const l = secsLeft(lastState.phaseEndsAt, offset) ?? 0;
@@ -319,16 +330,19 @@ function commitPredictor(s, left) {
 
 function commitSubject(s, left) {
   if (s.you.truth !== null) return lockScreen(s, 'Your answer is in. You’ll say it out loud in a moment.');
-  const opts = s.probe.options || ['Yes', 'No'];
   render(`
     <p class="kicker">${left}s · your real answer, honestly</p>
     <p class="probe-text" style="font-size:20px">${esc(probeText(s.probe.text, s.you.name))}</p>
     <p class="muted small">Only you can see this. After everyone locks their guess, you'll say it out loud.</p>
-    <div class="options">
-      ${opts.map(o => `<button data-a="t" data-o="${esc(o)}">${esc(o)}</button>`).join('')}
-    </div>
+    ${truthInput(s.probe)}
   `);
   bind({ t: d => act('truth', { answer: d.o }) });
+}
+
+function truthInput(probe) {
+  if (probe.answerType === 'scale') return scaleRow('t');
+  const opts = probe.options || ['Yes', 'No'];
+  return `<div class="options">${opts.map(o => `<button data-a="t" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
 }
 
 function lockScreen(s, note = '') {
@@ -389,8 +403,7 @@ function lookupScreen(s) {
 function subjectConfirm(s) {
   if (!s.you?.isSubject) return '';
   if (!s.truthIn) {
-    const opts = (s.probe.options || ['Yes', 'No']);
-    return `<p class="kicker">first — your real answer:</p><div class="options">${opts.map(o => `<button data-a="t" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
+    return `<p class="kicker">first — your real answer:</p>${truthInput(s.probe)}`;
   }
   return `<button class="primary" data-a="confirm">I've told them — reveal “${esc(s.you.truth)}”</button>`;
 }

@@ -59,10 +59,10 @@ try {
   await new Promise(r => setTimeout(r, 300));
   assert(alice.state?.players.length === 4, '4 players in lobby');
 
-  // demo configuration: one rotation, fast pace — the post-hackathon setup
-  alice.act('settings', { rounds: 4, pace: 'demo' });
+  // demo configuration: one round (= one full rotation), fast pace
+  alice.act('settings', { rounds: 1, pace: 'demo' });
   await new Promise(r => setTimeout(r, 150));
-  assert(alice.state?.settings.rounds === 4 && alice.state?.settings.pace === 'demo', 'rounds + pace settings applied');
+  assert(alice.state?.settings.rounds === 1 && alice.state?.settings.pace === 'demo', 'rounds + pace settings applied');
   alice.act('start');
 
   const all = [alice, ...others];
@@ -86,11 +86,18 @@ try {
     await alice.waitPhase('commit');
 
     const probe = subject.state.probe;
+    const isScale = probe.answerType === 'scale';
     const opts = probe.options || ['Yes', 'No'];
-    preds[0].act('commit', { answer: opts[0], conf: 'damnsure' });
-    preds[1].act('commit', { answer: opts[1], conf: 'lean' });
+    if (isScale) {
+      preds[0].act('commit', { answer: '7' });
+      preds[1].act('commit', { answer: '2' });
+      subject.act('truth', { answer: '7' });
+    } else {
+      preds[0].act('commit', { answer: opts[0], conf: 'damnsure' });
+      preds[1].act('commit', { answer: opts[1], conf: 'lean' });
+      subject.act('truth', { answer: opts[0] });
+    }
     // preds[2] never commits → timeout auto-pass
-    subject.act('truth', { answer: opts[0] });
 
     // wait on the same client we read from — each socket syncs independently
     const rs = await preds[0].waitPhase('reveal', 15000); // demo-pace commit timer is 10s
@@ -100,12 +107,16 @@ try {
     subject.act('confirmTruth');
     const ts = await preds[0].waitPhase('truth');
     if (ts.flavor) flavors.push(ts.flavor);
-    if (!expectTutorial) {
+    if (!expectTutorial && !isScale) {
       const me = ts.roundPts.find(r => r.pid === preds[0].pid);
       const k = (probe.options && probe.options.length > 2) ? probe.options.length : 2;
       assert(me.pts === scoreChoice('damnsure', true, k), `damn-sure hit scores ${me.pts} (proper rule)`);
       const wrong = ts.roundPts.find(r => r.pid === preds[1].pid);
       assert(wrong.pts === scoreChoice('lean', false, k), `lean miss scores ${wrong.pts}`);
+    }
+    if (!expectTutorial && isScale) {
+      const me = ts.roundPts.find(r => r.pid === preds[0].pid);
+      assert(me.pts === 25 && me.correct === true, `scale dead-on scores ${me.pts}`);
     }
     const ds = await alice.waitPhase('debrief');
     assert(ds.phaseEndsAt !== null, 'debrief has a timer');

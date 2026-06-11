@@ -47,7 +47,7 @@ const VIEWS = {
   },
   probe(s) {
     render(`
-      <p class="kicker">${tierLabel(s.tier)} · round ${Math.max(1, s.round)} · about ${esc(s.subjectName)}</p>
+      <p class="kicker">${tierLabel(s.tier)} · ${esc(s.subjectName)}'s turn</p>
       <p class="probe-text">${esc(probeText(s.probe.text, s.subjectName))}</p>
       <p class="kicker">${esc(s.subjectName)}, read it out loud</p>
     `, 'stage');

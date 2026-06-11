@@ -19,8 +19,8 @@ export async function loadDeck() {
   return DECK;
 }
 
-export function draw(deck, { tier, mode, used, allowTypes = null }) {
-  const ok = p => p.tier === tier && p.modes.includes(mode) &&
+export function draw(deck, { tier, mode = 'any', used, allowTypes = null }) {
+  const ok = p => p.tier === tier && (mode === 'any' || p.modes.includes(mode)) &&
     (!allowTypes || allowTypes.includes(p.answerType));
   let pool = deck.filter(p => ok(p) && !used.has(p.id));
   if (!pool.length) {

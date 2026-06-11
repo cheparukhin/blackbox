@@ -5,7 +5,7 @@
 // deep. Two players get the free-form and 1–10 scale questions in the deep
 // pool; bigger groups get confessions and who-of-us questions.
 
-import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, confButtons, fmtPts } from './util.js';
+import { render, bind, esc, probeText, everyFrame, clearTickers, timerBar, tierLabel, confButtons, fmtPts, scaleRow } from './util.js';
 import { CONF, scoreChoice, scoreScale, GRADES, GRADE_ORDER } from './scoring.js';
 import { computeStats, roundFlavor, interimStats } from './stats.js';
 import { statsCard } from './statsview.js';
@@ -34,8 +34,9 @@ function setup() {
       <input type="text" id="nm" placeholder="First name" maxlength="16" autocomplete="off" enterkeyhint="next">
       ${msg ? `<p class="small" style="color:var(--bad)">${esc(msg)}</p>` : ''}
       <label class="num-label">Rounds
-        <input type="number" id="rounds" min="1" max="50" inputmode="numeric" placeholder="auto" value="${esc(S.roundsChoice ?? '')}">
+        <input type="number" id="rounds" min="1" max="10" inputmode="numeric" value="${esc(S.roundsChoice ?? 3)}">
       </label>
+      <p class="muted small center">A round = everyone takes one turn as the subject.</p>
       <div class="btn-row">
         <button data-a="add">Add player</button>
         <button class="primary" data-a="go">Start</button>
@@ -64,10 +65,10 @@ function setup() {
         if (S.players.length < 2) return paint('Add at least two players.');
         audio.unlock();
         S.n = S.players.length;
+        // a round = everyone takes one turn as the subject
         const r = Math.round(Number(S.roundsChoice));
-        S.roundsTotal = Number.isFinite(r) && r >= 1 ? Math.min(50, r) : (S.n <= 2 ? 10 : 2 * S.n);
-        S.ballotEvery = S.n <= 2 ? 3 : S.n;
-        S.deckMode = S.n <= 2 ? 'dyad' : 'table';
+        const rounds = Number.isFinite(r) && r >= 1 ? Math.min(10, r) : 3;
+        S.roundsTotal = rounds * S.n; // turns
         startRound();
       },
     });
@@ -80,7 +81,9 @@ const subject = () => S.players[S.subjectIdx];
 const predictors = () => S.players.filter((_, i) => i !== S.subjectIdx);
 
 function drawNext() {
-  const probe = draw(deck, { tier: S.round === 0 ? 0 : S.tier, mode: S.deckMode, used: S.used });
+  // full deck at any player count; relational needs 2+ others to point at
+  const allowTypes = S.n >= 3 ? null : ['binary', 'overunder', 'mc4', 'scale', 'freeform'];
+  const probe = draw(deck, { tier: S.round === 0 ? 0 : S.tier, used: S.used, allowTypes });
   if (probe.answerType === 'relational') probe.options = predictors().map(p => p.name);
   return probe;
 }
@@ -89,7 +92,7 @@ function startRound() {
   S.subjectIdx = (S.subjectIdx + 1) % S.n;
   S.commits = []; S.truth = null;
   S.probe = drawNext();
-  passScreen(subject().name, `This round is about ${subject().name} — they see the question first.`, previewScreen);
+  passScreen(subject().name, `${subject().name}'s turn — they see the question first.`, previewScreen);
 }
 
 function passScreen(name, note, next) {
@@ -145,8 +148,8 @@ function predictScreen(i) {
     <p class="probe-text" style="font-size:22px">${esc(probeText(p.text, subject().name))}</p>`;
 
   if (p.answerType === 'scale') {
-    render(`${head}<p class="muted small">Your guess, 1 to 10:</p>${scaleButtons('ans')}`);
-    bind({ ans: d => next({ value: Number(d.v) }) });
+    render(`${head}<p class="muted small">Your guess, 1 to 10:</p>${scaleRow('ans')}`);
+    bind({ ans: d => next({ value: Number(d.o) }) });
   } else if (p.answerType === 'freeform') {
     render(`${head}
       <textarea id="ff" placeholder="One sentence — your best guess at their answer."></textarea>
@@ -177,8 +180,8 @@ function truthScreen() {
     <p class="kicker">${esc(subject().name)} — your real answer, honestly</p>
     <p class="probe-text" style="font-size:22px">${esc(probeText(p.text, subject().name))}</p>`;
   if (p.answerType === 'scale') {
-    render(`${head}${scaleButtons('t')}`);
-    bind({ t: d => { S.truth = { value: Number(d.v) }; revealScreen(); } });
+    render(`${head}${scaleRow('t')}`);
+    bind({ t: d => { S.truth = { value: Number(d.o) }; revealScreen(); } });
   } else if (p.answerType === 'freeform') {
     render(`${head}
       <textarea id="ff" placeholder="The true answer, in your words."></textarea>
@@ -197,19 +200,36 @@ function revealScreen() {
   audio.sting();
   const p = S.probe;
 
-  if (p.answerType === 'freeform') { // n=2 only
-    const pred = S.commits[0];
-    render(`
-      <p class="kicker center">look together</p>
-      <div class="panel"><p class="small muted">${esc(pred.name)} guessed:</p><p>${esc(pred.text)}</p></div>
-      <div class="panel"><p class="small muted">${esc(subject().name)} really answered:</p><p>${esc(S.truth.text)}</p></div>
-      <p class="kicker center">${esc(subject().name)} — how close was the guess?</p>
-      <div class="conf-row">${GRADE_ORDER.map(g => `<button data-a="g" data-g="${g}">${g[0].toUpperCase() + g.slice(1)} · ${fmtPts(GRADES[g])}</button>`).join('')}</div>
-    `);
-    bind({ g: d => {
-      recordRound([{ ...pred, answer: pred.text, conf: null, p: null, correct: d.g === 'hot' || d.g === 'exact', pts: GRADES[d.g] }]);
-      debriefScreen();
-    } });
+  if (p.answerType === 'freeform') {
+    // the subject grades every guess; works at any table size
+    const grades = new Map();
+    const paint = () => {
+      render(`
+        <p class="kicker center">look together</p>
+        <div class="panel"><p class="small muted">${esc(subject().name)} really answered:</p><p>${esc(S.truth.text)}</p></div>
+        ${S.commits.map((c, i) => `
+          <div class="panel">
+            <p class="small muted">${esc(c.name)} guessed:</p><p>${esc(c.text)}</p>
+            <div class="conf-row">${GRADE_ORDER.map(g => `
+              <button class="toggle ${grades.get(i) === g ? 'selected' : ''}" data-a="g" data-i="${i}" data-g="${g}">${g[0].toUpperCase() + g.slice(1)} · ${fmtPts(GRADES[g])}</button>`).join('')}
+          </div>
+          </div>`).join('')}
+        ${grades.size === S.commits.length
+          ? `<button class="primary" data-a="next">Put the phone down — talk it over</button>`
+          : `<p class="muted small center">${esc(subject().name)} — grade each guess.</p>`}
+      `);
+      bind({
+        g: d => { grades.set(Number(d.i), d.g); paint(); },
+        next: () => {
+          recordRound(S.commits.map((c, i) => {
+            const g = grades.get(i);
+            return { ...c, answer: c.text, conf: null, p: null, correct: g === 'hot' || g === 'exact', pts: GRADES[g] };
+          }));
+          debriefScreen();
+        },
+      });
+    };
+    paint();
     return;
   }
 
@@ -280,8 +300,8 @@ function debriefScreen() {
 function nextOrBallot() {
   if (S.round === 0) { S.round = 1; return startRound(); }
   S.round += 1;
-  // one guardrail: while still spicy, ask once per rotation — go deep?
-  if (S.tier === 1 && S.sinceBallot >= S.ballotEvery) { S.sinceBallot = 0; S.votes = []; return ballotPass(0); }
+  // one guardrail: while still spicy, ask once per round — go deep?
+  if (S.tier === 1 && S.sinceBallot >= S.n) { S.sinceBallot = 0; S.votes = []; return ballotPass(0); }
   if (S.scored >= S.roundsTotal) return statsScreen();
   startRound();
 }
@@ -336,7 +356,7 @@ function statsScreen() {
   }
   render(`
     ${statsCard(st, { calibration: getCalibration() })}
-    <button class="primary" data-a="more">Keep playing · one more round each</button>
+    <button class="primary" data-a="more">Keep playing · one more round</button>
     <button class="ghost" data-a="done">Done</button>
   `);
   bind({
@@ -345,6 +365,3 @@ function statsScreen() {
   });
 }
 
-function scaleButtons(action) {
-  return `<div class="scale-row">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button data-a="${action}" data-v="${n}">${n}</button>`).join('')}</div>`;
-}

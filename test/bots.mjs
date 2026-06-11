@@ -40,7 +40,7 @@ function react(bot) {
 
   if (s.phase === 'lobby' && me.isCreator && s.players.length >= 4) {
     once(bot, key, 1000, () => {
-      act(bot, 'settings', { rounds: 4, pace: 'demo' }); // post-hackathon demo config
+      act(bot, 'settings', { rounds: 1, pace: 'demo' }); // one full rotation, demo timers
       setTimeout(() => act(bot, 'start'), 300);
     });
   } else if (s.phase === 'preview' && me.isSubject) {
@@ -48,16 +48,17 @@ function react(bot) {
   } else if (s.phase === 'probe' && me.isSubject) {
     once(bot, key, 2000, () => act(bot, 'ready'));
   } else if (s.phase === 'commit') {
+    const pick = () => {
+      if (s.probe?.answerType === 'scale') return String(1 + Math.floor(Math.random() * 10));
+      const opts = s.probe?.options || ['Yes', 'No'];
+      return opts[Math.floor(Math.random() * opts.length)];
+    };
     if (me.isSubject && !s.truthIn) {
-      once(bot, key + 't', 1200, () => {
-        const opts = s.probe?.options || ['Yes', 'No'];
-        act(bot, 'truth', { answer: opts[Math.floor(Math.random() * opts.length)] });
-      });
+      once(bot, key + 't', 1200, () => act(bot, 'truth', { answer: pick() }));
     } else if (!me.isSubject && !me.committed) {
       once(bot, key, 800 + Math.random() * 2000, () => {
-        const opts = s.probe?.options || ['Yes', 'No'];
         const confs = ['pass', 'lean', 'confident', 'damnsure'];
-        act(bot, 'commit', { answer: opts[Math.floor(Math.random() * opts.length)], conf: confs[Math.floor(Math.random() * 4)] });
+        act(bot, 'commit', { answer: pick(), conf: confs[Math.floor(Math.random() * 4)] });
       });
     }
   } else if (s.phase === 'reveal' && me.isSubject) {
