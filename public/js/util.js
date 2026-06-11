@@ -9,6 +9,7 @@ export function esc(s) {
 
 export function render(html, cls = '') {
   const app = $('#app');
+  app.onclick = null; // screens set tap handlers; never let one leak into the next screen
   app.className = 'screen ' + cls;
   app.innerHTML = html;
 }

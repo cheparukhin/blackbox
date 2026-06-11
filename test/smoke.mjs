@@ -59,10 +59,10 @@ try {
   await new Promise(r => setTimeout(r, 300));
   assert(alice.state?.players.length === 4, '4 players in lobby');
 
-  // demo configuration: one round (= one full rotation), fast pace
-  alice.act('settings', { rounds: 1, pace: 'demo' });
+  // two rounds (rotations), fast pace — ballot fires between them, not at the end
+  alice.act('settings', { rounds: 2, pace: 'demo' });
   await new Promise(r => setTimeout(r, 150));
-  assert(alice.state?.settings.rounds === 1 && alice.state?.settings.pace === 'demo', 'rounds + pace settings applied');
+  assert(alice.state?.settings.rounds === 2 && alice.state?.settings.pace === 'demo', 'rounds + pace settings applied');
   alice.act('start');
 
   const all = [alice, ...others];
@@ -127,23 +127,24 @@ try {
   log('tutorial round complete');
   for (let i = 0; i < 4; i++) { await playRound(false); log(`scored round ${i + 1} complete`); }
 
-  // full rotation done → ballot fires on all phones, even though rounds are up
+  // first rotation done → ballot fires on all phones (game continues after)
   const bs = await alice.waitPhase('ballot', 15000);
   assert(bs.voteCount === null, 'ballot leaks no counts');
   all.forEach(c => c.act('vote', { v: 'deepen' }));
   const br = await alice.waitPhase('ballotResult', 10000);
-  assert(br.ballotOutcome.dir === 'deepen' && br.ballotOutcome.tier === 2, 'unanimous deepen → tier 2');
+  assert(br.ballotOutcome.dir === 'deepen' && br.ballotOutcome.tier === 2, 'majority deepen → deep');
   assert(!!br.interim?.oracle, `interim superlatives at the rotation beat: ${br.interim?.oracle}`);
   assert(flavors.length > 0, `round flavor lines fired: "${flavors[0]}"`);
 
-  // …then straight to the end card, with awards despite the short session
+  // second rotation plays deep, then straight to the end card — no end-of-game ballot
+  for (let i = 0; i < 4; i++) { await playRound(false); log(`deep round ${i + 1} complete`); }
   const st = await alice.waitPhase('stats', 15000);
   assert(!!st.statsData, 'end card data present');
   assert(!!st.statsData.oracle, `Oracle awarded: ${st.statsData.oracle?.name}`);
   assert(!!st.statsData.boldest, `Boldest Call awarded: ${st.statsData.boldest?.name}`);
   assert(!!st.statsData.openBook, `Open Book shown: ${st.statsData.openBook?.name}`);
   assert(st.statsData.totals.every(t => Number.isFinite(t.total)), 'every player has a score (zero-centered scale)');
-  assert(Array.isArray(st.history) && st.history.length === 4, 'history carries 4 scored rounds');
+  assert(Array.isArray(st.history) && st.history.length === 8, 'history carries 8 scored rounds');
 
   log(failed ? 'SMOKE FAILED' : 'SMOKE PASSED');
 } catch (e) {

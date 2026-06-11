@@ -1,7 +1,7 @@
 // Optional big-screen stage — a read-only, landscape, large-type mirror of the
 // public state. Shows nothing private; the game never depends on it existing.
 
-import { render, esc, probeText, everyFrame, clearTickers, secsLeft, tierLabel } from './util.js';
+import { render, bind, esc, probeText, everyFrame, clearTickers, secsLeft, tierLabel } from './util.js';
 import { CONF } from './scoring.js';
 import { statsCard } from './statsview.js';
 
@@ -19,7 +19,13 @@ function connect() {
   ws.onopen = () => ws.send(JSON.stringify({ t: 'stage', code }));
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
-    if (m.t === 'err') render(`<div class="dead-hint">${esc(m.msg)}</div>`, 'dead stage');
+    if (m.t === 'err') {
+      render(`
+        <div class="dead-hint">${esc(m.msg)}</div>
+        <button class="ghost" data-a="back" style="max-width:320px;margin:0 auto">Back</button>
+      `, 'dead stage');
+      bind({ back: () => { location.href = '/'; } });
+    }
     if (m.t === 'state') { last = m.s; offset = m.s.now - Date.now(); paint(m.s); }
   };
   ws.onclose = () => setTimeout(connect, 2000);

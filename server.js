@@ -104,6 +104,7 @@ function mkRoom() {
 
 function subjectOf(room) { return room.players[room.subjectIdx] || null; }
 function predictorsOf(room) { return room.players.filter((_, i) => i !== room.subjectIdx); }
+function liveCount(room) { return Math.max(1, room.players.filter(p => p.connected).length); }
 function kOf(room) {
   const p = room.probe;
   if (!p) return 2;
@@ -112,9 +113,11 @@ function kOf(room) {
 }
 
 function drawProbe(room, tier) {
-  // same deck as local mode, minus free-form (typing on a 15s parallel timer);
+  // minus free-form (typing on a 15s parallel timer); dyad-tagged probes (the
+  // ones addressed to a single "you") only when there are exactly two players;
   // relational probes need at least two other players to point at
   const ok = p => p.tier === tier && p.answerType !== 'freeform' &&
+    (p.modes.includes('table') || room.players.length === 2) &&
     (p.answerType !== 'relational' || room.players.length >= 3);
   let pool = DECK.filter(p => ok(p) && !room.used.has(p.id));
   if (!pool.length) { // tier exhausted: recycle, excluding the probe on the table
@@ -165,7 +168,11 @@ function afterBallot(room) {
 
 function startRound(room) {
   room.round += 1; // round 0 is the T0 tutorial
-  room.subjectIdx = (room.subjectIdx + 1) % room.players.length;
+  // rotate, skipping ghost seats — a disconnected player must never be the subject
+  for (let hops = 0; hops < room.players.length; hops++) {
+    room.subjectIdx = (room.subjectIdx + 1) % room.players.length;
+    if (room.players[room.subjectIdx].connected) break;
+  }
   room.probe = drawProbe(room, room.round === 0 ? 0 : room.tier);
   room.commits = new Map();
   room.truth = null; room.truthConfirmed = false; room.roundPts = null; room.flavor = null;
@@ -230,8 +237,10 @@ function abandonRound(room) { startRound(room); }
 function endRound(room) {
   if (room.round > 0) { room.roundsPlayed += 1; room.sinceBallot += 1; }
   // one guardrail: while still spicy, each full rotation asks once — go deep?
-  // (once deep, there's nothing left to vote on; the burn is the safety valve)
-  if (room.round > 0 && room.tier === 1 && room.sinceBallot >= room.players.length) { toBallot(room); return; }
+  // (once deep there's nothing to vote on; skip it too when the game is ending —
+  // voting to deepen a finished game reads as nonsense)
+  if (room.round > 0 && room.tier === 1 && room.sinceBallot >= liveCount(room) &&
+      room.roundsPlayed < room.roundsTotal) { toBallot(room); return; }
   if (room.round > 0 && room.roundsPlayed >= room.roundsTotal) { toStats(room); return; }
   startRound(room);
 }
@@ -245,10 +254,10 @@ function toBallot(room) {
 
 function resolveBallot(room) {
   if (room.phase !== 'ballot') return;
-  // majority takes the table deep; absent votes count as "not yet"
+  // majority of the players actually present; absent votes count as "not yet"
   const deep = room.players.filter(p => room.votes.get(p.id) === 'deepen').length;
   room.sinceBallot = 0;
-  const dir = deep > room.players.length / 2 ? 'deepen' : 'stay';
+  const dir = deep > liveCount(room) / 2 ? 'deepen' : 'stay';
   if (dir === 'deepen') room.tier = 2;
   room.ballotOutcome = { dir, tier: room.tier };
   setPhase(room, 'ballotResult', 5);
@@ -265,10 +274,12 @@ function handleAction(room, pid, a, d = {}) {
   if (!me) return;
   const isSubject = subjectOf(room)?.id === pid;
   const isCreator = room.players[0]?.id === pid;
+  // a dead creator phone must not strand the room — anyone present inherits the host powers
+  const actingCreator = isCreator || room.players[0]?.connected === false;
 
   switch (a) {
     case 'settings':
-      if (room.phase === 'lobby' && isCreator) {
+      if (room.phase === 'lobby' && actingCreator) {
         const r = Math.round(Number(d.rounds));
         if (Number.isFinite(r) && r >= 1) room.settings.rounds = Math.min(10, r);
         if (['standard', 'demo'].includes(d.pace)) room.settings.pace = d.pace;
@@ -276,10 +287,8 @@ function handleAction(room, pid, a, d = {}) {
       }
       break;
     case 'start':
-      // the creator starts — but a dead creator phone must not strand the room
-      if (room.phase === 'lobby' && room.players.length >= 2 &&
-          (isCreator || room.players[0]?.connected === false)) {
-        room.roundsTotal = room.settings.rounds * room.players.length;
+      if (room.phase === 'lobby' && actingCreator && liveCount(room) >= 2) {
+        room.roundsTotal = room.settings.rounds * liveCount(room);
         startRound(room);
       }
       break;
@@ -338,10 +347,11 @@ function handleAction(room, pid, a, d = {}) {
       if (['preview', 'probe', 'commit', 'reveal'].includes(room.phase) && !subjectOf(room)?.connected) abandonRound(room);
       break;
     case 'more':
-      if (room.phase === 'stats') { room.roundsTotal += room.players.length; startRound(room); }
+      // exactly one more rotation from here — even after an early finish
+      if (room.phase === 'stats') { room.roundsTotal = room.roundsPlayed + liveCount(room); startRound(room); }
       break;
     case 'finish':
-      if (isCreator && room.phase !== 'lobby' && room.phase !== 'stats') toStats(room);
+      if (actingCreator && room.phase !== 'lobby' && room.phase !== 'stats') toStats(room);
       break;
   }
 }
@@ -440,11 +450,15 @@ wss.on('connection', ws => {
       if (!name) return send(ws, { t: 'err', msg: 'Need a first name.' });
       const existing = r.players.find(p => p.name.toLowerCase() === name.toLowerCase());
       if (existing) {
-        // reconnection by first name reclaims your seat
+        // reconnection by first name reclaims your seat. Mid-game the old socket
+        // is usually a zombie (phone slept during the debrief) — evict it rather
+        // than strand the returning player for a heartbeat cycle.
         const old = r.sockets.get(existing.id);
         if (old && old !== ws && old.readyState === 1) {
-          if (existing.connected) return send(ws, { t: 'err', msg: `"${existing.name}" is already at the table.` });
-          old.close();
+          if (existing.connected && r.phase === 'lobby') {
+            return send(ws, { t: 'err', msg: `"${existing.name}" is already at the table — pick another name.` });
+          }
+          old.terminate();
         }
         existing.connected = true;
         r.sockets.set(existing.id, ws);

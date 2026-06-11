@@ -81,9 +81,10 @@ const subject = () => S.players[S.subjectIdx];
 const predictors = () => S.players.filter((_, i) => i !== S.subjectIdx);
 
 function drawNext() {
-  // full deck at any player count; relational needs 2+ others to point at
+  // pairs get the whole deck; groups skip dyad-tagged probes (the ones addressed
+  // to a single "you"); relational needs 2+ others to point at
   const allowTypes = S.n >= 3 ? null : ['binary', 'overunder', 'mc4', 'scale', 'freeform'];
-  const probe = draw(deck, { tier: S.round === 0 ? 0 : S.tier, used: S.used, allowTypes });
+  const probe = draw(deck, { tier: S.round === 0 ? 0 : S.tier, mode: S.n === 2 ? 'any' : 'table', used: S.used, allowTypes });
   if (probe.answerType === 'relational') probe.options = predictors().map(p => p.name);
   return probe;
 }
@@ -301,7 +302,8 @@ function nextOrBallot() {
   if (S.round === 0) { S.round = 1; return startRound(); }
   S.round += 1;
   // one guardrail: while still spicy, ask once per round — go deep?
-  if (S.tier === 1 && S.sinceBallot >= S.n) { S.sinceBallot = 0; S.votes = []; return ballotPass(0); }
+  // (skipped when the game is ending; voting to deepen a finished game is noise)
+  if (S.tier === 1 && S.sinceBallot >= S.n && S.scored < S.roundsTotal) { S.sinceBallot = 0; S.votes = []; return ballotPass(0); }
   if (S.scored >= S.roundsTotal) return statsScreen();
   startRound();
 }
@@ -360,7 +362,7 @@ function statsScreen() {
     <button class="ghost" data-a="done">Done</button>
   `);
   bind({
-    more: () => { S.roundsTotal += S.n; startRound(); },
+    more: () => { S.roundsTotal = S.scored + S.n; startRound(); },
     done: () => onExit(),
   });
 }

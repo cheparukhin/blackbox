@@ -24,7 +24,7 @@ export function home() {
     <div class="spacer"></div>
     <button class="primary" data-a="net">Play on everyone's phones</button>
     <button data-a="local">Play on one shared phone</button>
-    <p class="muted center small">Any number of players. Two people go deepest.</p>
+    <p class="muted center small">Any number of players, two and up.</p>
     <div class="spacer"></div>
     <button class="ghost" data-a="sound">Sounds: ${soundOn() ? 'on' : 'off'}</button>
   `);

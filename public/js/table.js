@@ -79,17 +79,31 @@ function nameScreen(opts, errMsg = '') {
 function connect(hello, opts) {
   render(`<div class="dead-hint">connecting…</div>`, 'dead');
   try { ws?.close(); } catch {}
+  let rejected = false;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws`);
   ws.onopen = () => ws.send(JSON.stringify(hello));
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
-    if (m.t === 'err') { nameScreen({ ...opts, code: hello.code || '' }, m.msg); joinedCode = null; }
+    if (m.t === 'err') {
+      if (joinedCode) {
+        // mid-game blip: our old socket may still look alive to the server — keep retrying
+        render(`<div class="dead-hint">getting your seat back…</div>`, 'dead');
+        setTimeout(() => connect({ t: 'join', code: joinedCode, name: myName }, opts), 2000);
+      } else {
+        rejected = true;
+        nameScreen({ ...opts, code: hello.code || '' }, m.msg);
+      }
+    }
     if (m.t === 'joined') { myPid = m.pid; joinedCode = m.code; history.replaceState(null, '', `/?room=${m.code}`); }
     if (m.t === 'state') { lastState = m.s; offset = m.s.now - Date.now(); paint(m.s); }
   };
   ws.onclose = () => {
-    if (!joinedCode) return; // join was rejected; name screen is showing
+    if (!joinedCode) {
+      // transport failure before we ever joined (wrong wifi, server asleep) — never strand the player
+      if (!rejected) nameScreen({ ...opts, code: hello.code || '' }, "Couldn't reach the room — same wifi as the host?");
+      return;
+    }
     render(`<div class="dead-hint">connection lost — rejoining as ${esc(myName)}…</div>`, 'dead');
     setTimeout(() => connect({ t: 'join', code: joinedCode, name: myName }, opts), 2000);
   };
@@ -239,7 +253,10 @@ const SCREENS = {
         <div class="dead-big">PHONES<br>FACE DOWN</div>
         <p class="dead-hint">talk — what made you guess that?<br>whoever guessed differently goes first · ${esc(s.subjectName)} gets the last word</p>
       `, 'dead facedown');
-      document.querySelector('#app').onclick = () => { debriefTools = true; SCREENS.debrief(lastState); };
+      document.querySelector('#app').onclick = () => {
+        if (lastState?.phase !== 'debrief') return;
+        debriefTools = true; SCREENS.debrief(lastState);
+      };
       return;
     }
     // flipped mid-debrief: faint AR stems — a hint, never a requirement
@@ -252,7 +269,7 @@ const SCREENS = {
         <button class="ghost" data-a="end">Next round</button>
       </div>
       <button class="ghost" data-a="down">back face down</button>
-      ${s.you?.isCreator ? `<button class="ghost" data-a="finish">End the game — see results</button>` : ''}
+      ${s.you?.isCreator || s.players[0]?.connected === false ? `<button class="ghost" data-a="finish">End the game — see results</button>` : ''}
     `, 'dead facedown');
     bind({
       ext: () => act('extendDebrief'),
@@ -298,13 +315,19 @@ function commitPredictor(s, left) {
   if (s.you.committed) return lockScreen(s);
   const p = s.probe;
   if (p.answerType === 'scale') {
+    // two-step like every other type: pick, then lock — no irreversible mis-taps
     render(`
       <p class="kicker">${left}s · what will ${esc(s.subjectName)} answer?</p>
       <p class="probe-text" style="font-size:20px">${esc(probeText(p.text, s.subjectName))}</p>
       <p class="muted small">Your guess, 1 to 10 — within one of their number scores points.</p>
-      ${scaleRow('ans')}
+      <div class="scale-row">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n =>
+        `<button class="${pendingAnswer === String(n) ? 'selected' : ''}" data-a="ans" data-o="${n}">${n}</button>`).join('')}</div>
+      ${pendingAnswer !== null ? `<button class="primary" data-a="lock">Lock it in · ${esc(pendingAnswer)}</button>` : ''}
     `);
-    bind({ ans: d => act('commit', { answer: d.o }) });
+    bind({
+      ans: d => { pendingAnswer = d.o; commitPredictor(lastState, secsLeft(lastState.phaseEndsAt, offset) ?? 0); },
+      lock: () => act('commit', { answer: pendingAnswer }),
+    });
   } else {
     const opts = p.options || ['Yes', 'No'];
     render(`
@@ -356,7 +379,7 @@ function lockScreen(s, note = '') {
   const c = s.you?.commit;
   render(`
     <div class="dead-big">${s.lockCount ?? 0}/${s.predictorCount}<br>locked in</div>
-    <p class="dead-hint">${esc(note) || (c ? `your guess: ${esc(c.answer)} · ${CONF[c.conf]?.label || ''}` : 'locked · phone down')}</p>
+    <p class="dead-hint">${esc(note) || (c ? `your guess: ${esc(c.answer)}${c.conf && CONF[c.conf] ? ' · ' + CONF[c.conf].label : ''}` : 'locked · phone down')}</p>
   `, 'dead');
 }
 
@@ -403,7 +426,10 @@ function lookupScreen(s) {
     skip: () => act('skip'),
   });
   if (!s.you?.isSubject) {
-    document.querySelector('#app').onclick = () => { peekUntil = nowS() + 3000; SCREENS.reveal(lastState); };
+    document.querySelector('#app').onclick = () => {
+      if (lastState?.phase !== 'reveal') return;
+      peekUntil = nowS() + 3000; SCREENS.reveal(lastState);
+    };
   }
 }
 
