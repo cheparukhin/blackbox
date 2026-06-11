@@ -122,7 +122,8 @@ function nowS() { return Date.now() + offset; }
 // ---------- screens ----------
 const SCREENS = {
   lobby(s) {
-    const isCreator = s.you?.isCreator;
+    // creator runs the lobby; if their phone died, the next player takes over
+    const isCreator = s.you?.isCreator || s.players[0]?.connected === false;
     const url = `${location.origin}/?room=${s.code}`;
     const qr = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(url)}`;
     render(`
@@ -392,7 +393,7 @@ function revealGrid(s) {
 
 function lookupScreen(s) {
   render(`
-    <p class="lookup-msg">Look up.<br>${esc(s.subjectName)}, say your real answer out loud.</p>
+    <p class="lookup-msg">Look up.<br>${s.you?.isSubject ? 'Tell them your real answer.' : `${esc(s.subjectName)}, say your real answer out loud.`}</p>
     ${s.you?.isSubject ? subjectConfirm(s) : '<p class="dead-hint">tap to see the guesses again</p>'}
     ${skipButton(s)}
   `, 'dead');

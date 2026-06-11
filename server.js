@@ -276,7 +276,9 @@ function handleAction(room, pid, a, d = {}) {
       }
       break;
     case 'start':
-      if (room.phase === 'lobby' && isCreator && room.players.length >= 2) {
+      // the creator starts — but a dead creator phone must not strand the room
+      if (room.phase === 'lobby' && room.players.length >= 2 &&
+          (isCreator || room.players[0]?.connected === false)) {
         room.roundsTotal = room.settings.rounds * room.players.length;
         startRound(room);
       }
@@ -449,7 +451,7 @@ wss.on('connection', ws => {
         ws.bb = { room: r, pid: existing.id, stage: false };
         send(ws, { t: 'joined', code: r.code, pid: existing.id });
       } else {
-        if (r.phase !== 'lobby') return send(ws, { t: 'err', msg: 'Game in progress — rejoin with your original name.' });
+        if (r.phase !== 'lobby') return send(ws, { t: 'err', msg: 'This game already started. Played before? Use your exact same name to get your seat back. New? Watch via “Big screen only” and join the next game.' });
         const pid = Math.random().toString(36).slice(2, 10);
         r.players.push({ id: pid, name, connected: true });
         r.sockets.set(pid, ws);

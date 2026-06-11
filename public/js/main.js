@@ -1,6 +1,6 @@
 import { render, bind, esc, keepAwake, clearTickers } from './util.js';
 import { unlock, setSound, soundOn } from './audio.js';
-import { getName, getLocalSettings, setLocalSettings } from './storage.js';
+import { getName, getLocalSettings, setLocalSettings, honestyAcked, ackHonesty } from './storage.js';
 import { startTable } from './table.js';
 import { startStage } from './stage.js';
 import { startLocal } from './local.js';
@@ -41,8 +41,10 @@ export function home() {
   });
 }
 
-// Honesty norms — one screen, three lines, must be tapped through. Spec §8.
+// Honesty norms — one screen, tapped through once per device. Reconnecting
+// after a wifi blip must not re-gate a live game behind it.
 export function honesty(next) {
+  if (honestyAcked()) return next();
   render(`
     <p class="kicker">the one rule</p>
     <div class="panel">
@@ -52,7 +54,7 @@ export function honesty(next) {
     </div>
     <button class="primary" data-a="ok">Got it — let's play</button>
   `);
-  bind({ ok: () => next() });
+  bind({ ok: () => { ackHonesty(); next(); } });
 }
 
 keepAwake();
