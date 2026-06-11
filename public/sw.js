@@ -1,5 +1,5 @@
 // Cache-first shell so dyad mode runs with zero connectivity once loaded.
-const CACHE = 'blackbox-v3';
+const CACHE = 'blackbox-v4';
 const ASSETS = [
   '/', '/index.html', '/styles.css', '/deck.json',
   '/js/main.js', '/js/util.js', '/js/audio.js', '/js/storage.js', '/js/deck.js', '/js/tutorial.js',
