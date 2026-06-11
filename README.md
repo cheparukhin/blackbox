@@ -1,10 +1,10 @@
 # BLACK BOX
 
 Mobile-first web app for an in-person social game: score points by demonstrating you
-understand the person in front of you. **[DESIGN.md](DESIGN.md) is the current game
-design and decision log** ([black-box-spec.md](black-box-spec.md) is the original spec,
-kept for history; the game has deliberately diverged from it). [CLAUDE.md](CLAUDE.md)
-holds the working invariants for AI-assisted iteration.
+understand the person in front of you. **[DESIGN.md](DESIGN.md) is the game design and
+decision log**; [CLAUDE.md](CLAUDE.md) holds the working invariants for AI-assisted
+iteration. (The original build spec was removed once DESIGN.md superseded it — it's in
+git history if ever needed.)
 
 One scoring engine (a strictly proper, zero-centered Brier transform: Pass = 0, right
 answers gain, wrong answers lose), two modes:
@@ -61,11 +61,10 @@ reclaim their seats. Dyad mode keeps working offline once a phone has loaded the
 ## Layout
 
 - `server.js` — static files + room relay + the authoritative round state machine
-- `public/deck.json` — the deck (v2.1, `{name}` placeholder; master copy at
-  `black-box-deck.json`). The file is tiered 1–5; play remaps it to two levels
-  (T2+T3 → Spicy, T4+T5 → Deep, T1 dropped as too tame). The deck is the product;
-  tune it nightly, it's plain JSON. Warm-up probes live in `public/js/tutorial.js`
-  so they survive deck swaps.
+- `public/deck.json` — the deck (v2.1, `{name}` placeholder; single source of truth).
+  The file is tiered 1–5; play remaps it to two levels (T2+T3 → Spicy, T4+T5 → Deep,
+  T1 dropped as too tame). The deck is the product; tune it nightly, it's plain JSON.
+  Warm-up probes live in `public/js/tutorial.js` so they survive deck swaps.
 - `public/js/scoring.js` — the proper scoring rule (shared verbatim by server & client)
 - `public/js/stats.js`, `statsview.js` — end-card math + rendering (Oracle, Open Book,
   Enigma, Boldest Call, Icarus, legibility delta, lifetime calibration)

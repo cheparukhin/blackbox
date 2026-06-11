@@ -1,10 +1,11 @@
 # BLACK BOX — current design & decision log
 
-This is the living design document. It supersedes [black-box-spec.md](black-box-spec.md)
-(the original v4 spec, kept for history and rationale-mining). Every divergence below
-was a deliberate call made during iteration on 2026-06-10/11, most of them after the
-mechanics confused real first-time players. Don't undo these without a new reason;
-"the spec says so" is not one.
+This is the living design document. It supersedes the original v4 build spec, which
+was removed from the repo once this file absorbed its load-bearing rationale (it's in
+git history — `git log -- black-box-spec.md` — if you ever need the archaeology).
+Every divergence below was a deliberate call made during iteration on 2026-06-10/11,
+most of them after the mechanics confused real first-time players. Don't undo these
+without a new reason; "the spec said so" is not one.
 
 ## The game, as it stands
 
@@ -91,11 +92,11 @@ No running totals during play (they make people sandbag). Instead:
 
 ## The deck
 
-`black-box-deck.json` is the user-authored master (v2.1, ~164 questions, `{name}`
-placeholder, `{_meta, probes}` wrapper); `public/deck.json` is the served copy. The
-file keeps the original 1–5 tiers; the loaders remap (2,3→Spicy; 4,5→Deep; tier 1
-dropped as too tame — surface trivia wastes the table's appetite). Three zero-stakes
-warm-up questions live in code (`public/js/tutorial.js`) so they survive deck swaps.
+`public/deck.json` is the user-authored deck and single source of truth (v2.1,
+~164 questions, `{name}` placeholder, `{_meta, probes}` wrapper). The file keeps the
+original 1–5 tiers; the loaders remap (2,3→Spicy; 4,5→Deep; tier 1 dropped as too
+tame — surface trivia wastes the table's appetite). Three zero-stakes warm-up
+questions live in code (`public/js/tutorial.js`) so they survive deck swaps.
 The deck is the product — tune it after every play; cut anything that gets a flat
 reaction when read aloud.
 

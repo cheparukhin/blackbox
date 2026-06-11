@@ -5,10 +5,11 @@ player will answer a question about themselves, then that player answers truthfu
 Plain ES modules, no framework, no build step. Node ≥18, one dependency (`ws`).
 
 **Where truth lives:** [DESIGN.md](DESIGN.md) is the current game design and decision
-log — read it before changing any mechanic. [black-box-spec.md](black-box-spec.md) is
-the ORIGINAL spec, kept for history; large parts of it (5 tiers, dyad/table modes,
-reply phase, all-positive scoring, house-rule toggles, demo pace) were deliberately
-removed after real playtests. Do not "fix" the game back toward the spec.
+log — read it before changing any mechanic. The original build spec (five tiers,
+dyad/table modes, reply phase, all-positive scoring, toggles) was deliberately
+dismantled after real playtests and removed from the repo; it exists only in git
+history. If old commits or docs mention those mechanics, do not "fix" the game back
+toward them — DESIGN.md's graveyard section explains why each one died.
 
 ## Commands
 
@@ -39,9 +40,8 @@ fast timers; players never see these knobs.
   Never trust the client to hide what the server already sent.
 - **No settings.** One lobby knob (rounds). The user has repeatedly removed knobs
   (toggles, pace, tier ladder); don't add new ones without asking.
-- **The deck is the user's data.** `black-box-deck.json` (master) and
-  `public/deck.json` (served copy) are user-authored — don't edit their content,
-  ids, or mode tags. Code adapts to the deck, not vice versa.
+- **The deck is the user's data.** `public/deck.json` is user-authored — don't edit
+  its content, ids, or mode tags. Code adapts to the deck, not vice versa.
 - **No running point totals mid-game.** Stats during play are names-only superlatives
   and one-line flavor (see DESIGN.md "stats as table talk").
 
