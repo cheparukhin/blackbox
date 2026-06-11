@@ -3,14 +3,7 @@
     "game": "Black Box",
     "version": "2.1",
     "placeholder": "Probe text contains the literal token {name}. Render it as the subject's first name (e.g. \"Has {name} ever…\" → \"Has Sarah ever…\"). Never show the raw token to players.",
-    "consent": "No per-probe flags or content toggles. The tier ballot system IS the consent mechanism: a table that unanimously votes to Tier 4 has opted into everything Tier 4 contains. Subjects always retain the invisible burn.",
-    "tiers": {
-      "1": "Surface — being read is funny",
-      "2": "Character — being read is interesting",
-      "3": "Skin — being read is exposing",
-      "4": "Confession — being read is intimate",
-      "5": "Vault — being read is profound (dyad, free-form)"
-    },
+    "consent": "No per-probe flags or content toggles. The go-deeper vote is the group consent mechanism (tiers 2+3 play as Spicy, 4+5 as Deep — see DESIGN.md); subjects always retain the invisible burn.",
     "categories": ["history", "disposition", "forced-choice", "self-model", "relational", "live", "meta"],
     "quality_bar": "High population entropy x high individual inferability; both answers ownable; verifiable in 5 seconds (timeframes/thresholds); the predictor's explanation must be juicier than the answer. Negative-valence relational probes are roast-energy (being named is a badge), not rejection-energy (naming a third party who never consented).",
     "license_note": "All questions are original text written for Black Box. Inspired by the energy of Askhole (CC BY-NC-SA) but no Askhole text is reproduced or adapted. If you later import actual Askhole cards, those cards carry BY-NC-SA terms."
