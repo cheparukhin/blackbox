@@ -336,11 +336,11 @@ function statsScreen() {
   }
   render(`
     ${statsCard(st, { calibration: getCalibration() })}
-    <button class="primary" data-a="more">Keep playing · ${S.n <= 2 ? '2 more rounds' : 'one more round each'}</button>
+    <button class="primary" data-a="more">Keep playing · one more round each</button>
     <button class="ghost" data-a="done">Done</button>
   `);
   bind({
-    more: () => { S.roundsTotal += S.n <= 2 ? 2 : S.n; startRound(); },
+    more: () => { S.roundsTotal += S.n; startRound(); },
     done: () => onExit(),
   });
 }
