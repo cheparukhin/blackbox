@@ -38,6 +38,7 @@ function nameScreen(opts, errMsg = '') {
     ${errMsg ? `<p class="small" style="color:var(--bad)">${esc(errMsg)}</p>` : ''}
     <button class="primary" data-a="join">Join with code</button>
     <button data-a="create">Start a new room</button>
+    <button class="ghost" data-a="stage">Big screen only · just the code, no name</button>
     <button class="ghost" data-a="back">Back</button>
   `);
   const name = () => document.querySelector('#nm').value.trim();
@@ -53,6 +54,11 @@ function nameScreen(opts, errMsg = '') {
   }
   bind({
     back: () => onExit(),
+    stage: () => {
+      const code = document.querySelector('#code').value.trim().toUpperCase();
+      if (code.length !== 4) return nameScreen(opts, 'Type the room code, then tap “Big screen” — this device will mirror the game for everyone.');
+      location.href = `/?room=${code}&stage=1`;
+    },
     join: () => {
       audio.unlock();
       const code = document.querySelector('#code').value.trim().toUpperCase();
@@ -137,7 +143,7 @@ const SCREENS = {
         <p class="muted center small">A round = everyone takes one turn as the subject.</p>
         <button class="primary" data-a="start" ${s.players.length < 2 ? 'disabled' : ''}>${s.players.length < 2 ? 'Need 2+ players' : 'Start'}</button>`
         : `<p class="muted center small">${s.settings.rounds} round${s.settings.rounds === 1 ? '' : 's'} · ${esc(s.settings.pace)} pace — waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
-      <button class="ghost" data-a="stage">Use this device as a big screen</button>
+      <button class="ghost" data-a="stage">Turn this device into the big screen<br><span class="small">(then rejoin on your phone — your seat is saved)</span></button>
     `);
     document.querySelector('#rounds')?.addEventListener('change', e => {
       const r = Math.round(Number(e.target.value));
