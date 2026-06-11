@@ -1,5 +1,12 @@
 # BLACK BOX — Game Design Spec v4 (final)
 
+> **Historical document.** This is the original spec the first build was made from.
+> The shipped game has deliberately diverged in major ways (two content levels instead
+> of five tiers, zero-centered scoring, one merged talk phase, no house-rule toggles,
+> round = full rotation, unified local/distributed rules). The current design and the
+> reasons for every divergence live in [DESIGN.md](DESIGN.md) — change the game from
+> there, not from here.
+
 **Brief for the builder:** You are building a mobile-first web app for an in-person social game played at LessOnline/Manifest (Lighthaven, Berkeley). Two architectures in one app: **Dyad mode** is pure client-side, single-phone, pass-and-play (no networking, works fully offline). **Table mode (3–6 players)** is fully distributed: every player joins an ephemeral room on their own phone, and every phone is a complete mirror of the shared game state — there is no required host device and no required shared screen. A **big-screen stage is an optional bonus view**: any laptop/TV/tablet opening the room URL in display mode becomes a Jackbox-style stage, but game logic must never depend on one existing. No accounts, no feeds, no notifications. The app's job is to be a deck, a referee, and a timekeeper — and then to get out of the way. Read the whole spec before coding; the rationale sections explain *why* each mechanic exists, so don't "improve" a mechanic without checking what it's load-bearing for.
 
 ---

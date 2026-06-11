@@ -1,9 +1,13 @@
 # BLACK BOX
 
-Mobile-first web app for the in-person social game in [black-box-spec.md](black-box-spec.md):
-score points by demonstrating you understand the person in front of you. One scoring
-engine (a strictly proper, zero-centered Brier transform: Pass = 0, right answers
-gain, wrong answers lose), two modes:
+Mobile-first web app for an in-person social game: score points by demonstrating you
+understand the person in front of you. **[DESIGN.md](DESIGN.md) is the current game
+design and decision log** ([black-box-spec.md](black-box-spec.md) is the original spec,
+kept for history; the game has deliberately diverged from it). [CLAUDE.md](CLAUDE.md)
+holds the working invariants for AI-assisted iteration.
+
+One scoring engine (a strictly proper, zero-centered Brier transform: Pass = 0, right
+answers gain, wrong answers lose), two modes:
 
 - **Distributed (everyone's phone, 2+)** — ephemeral 4-char rooms over a tiny
   WebSocket relay. Every phone mirrors the one server-side state machine; the server
@@ -35,8 +39,10 @@ Phones must reach the laptop: same wifi (or a phone hotspot), then open the prin
 `http://<lan-ip>:3000` URL. For HTTPS/production, put it behind any TLS proxy; the
 client auto-selects `wss://`.
 
-`node test/smoke.mjs` drives a full 4-player round over websockets (commit → reveal →
-truth → debrief → reply → ballot) with fast timers and checks the scoring.
+`node test/smoke.mjs` drives a full 4-player game over websockets (guesses → reveal →
+talk → vote → end card) with fast timers and checks the scoring math.
+`node test/bots.mjs` spawns three self-playing bots and prints a room code — join from
+a browser to click through the real screens.
 
 ## Deploy (free)
 
@@ -66,12 +72,13 @@ reclaim their seats. Dyad mode keeps working offline once a phone has loaded the
 - `public/js/table.js` / `stage.js` — distributed-mode phone + big-screen mirrors
 - `public/js/local.js` — the one-phone pass-and-play mode
 
-## Before tonight (spec §13)
+## Before tonight (playtest checklist)
 
 1. Networking smoke test on venue wifi *and* a phone hotspot — if flaky, lead with
    local mode.
-2. One distributed round end-to-end under two minutes; watch whether the auto-dim
-   actually pulls eyes up.
-3. One two-player local round at Tier 3 — connection or homework?
-4. One invisible burn, one ballot.
-5. Read 20 random probes aloud to someone from the target crowd; cut flat ones.
+2. One distributed turn end-to-end under two minutes; watch whether the auto-dim
+   actually pulls eyes up off the phones.
+3. One two-player local game into Deep — connection or homework?
+4. One invisible burn, one go-deeper vote.
+5. Read 20 random questions aloud to someone from the target crowd; cut flat ones.
+   The deck is the product; tune it nightly.
