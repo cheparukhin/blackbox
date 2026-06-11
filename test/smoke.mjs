@@ -59,10 +59,10 @@ try {
   await new Promise(r => setTimeout(r, 300));
   assert(alice.state?.players.length === 4, '4 players in lobby');
 
-  // two rounds (rotations), fast pace — ballot fires between them, not at the end
-  alice.act('settings', { rounds: 2, pace: 'demo' });
+  // two rounds (rotations) — ballot fires between them, not at the end
+  alice.act('settings', { rounds: 2 });
   await new Promise(r => setTimeout(r, 150));
-  assert(alice.state?.settings.rounds === 2 && alice.state?.settings.pace === 'demo', 'rounds + pace settings applied');
+  assert(alice.state?.settings.rounds === 2, 'rounds setting applied');
   alice.act('start');
 
   const all = [alice, ...others];
@@ -100,7 +100,7 @@ try {
     // preds[2] never commits → timeout auto-pass
 
     // wait on the same client we read from — each socket syncs independently
-    const rs = await preds[0].waitPhase('reveal', 15000); // demo-pace commit timer is 10s
+    const rs = await preds[0].waitPhase('reveal', 15000); // commit timer is BB_COMMIT_SEC=5s here
     assert(rs.commits?.length === 3, 'reveal grid carries all predictors');
     assert(!!rs.commits.find(c => c.auto), 'missing commit became an auto-pass');
 

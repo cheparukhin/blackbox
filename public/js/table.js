@@ -149,15 +149,12 @@ const SCREENS = {
         ${s.players.map(p => `<div class="player-row"><span>${esc(p.name)}${p.id === s.creatorId ? ' <span class="muted small">opened the table</span>' : ''}</span><span class="${p.connected ? '' : 'off'}">${p.connected ? '●' : 'away'}</span></div>`).join('')}
       </div>
       ${isCreator ? `
-        <div class="btn-row">
-          <label class="num-label">Rounds
-            <input type="number" id="rounds" min="1" max="10" inputmode="numeric" value="${s.settings.rounds}">
-          </label>
-          <button class="ghost" data-a="pace">${s.settings.pace === 'demo' ? '⚡ demo pace' : 'standard pace'}</button>
-        </div>
+        <label class="num-label">Rounds
+          <input type="number" id="rounds" min="1" max="10" inputmode="numeric" value="${s.settings.rounds}">
+        </label>
         <p class="muted center small">A round = everyone takes one turn as the subject.</p>
         <button class="primary" data-a="start" ${s.players.length < 2 ? 'disabled' : ''}>${s.players.length < 2 ? 'Need 2+ players' : 'Start'}</button>`
-        : `<p class="muted center small">${s.settings.rounds} round${s.settings.rounds === 1 ? '' : 's'} · ${esc(s.settings.pace)} pace — waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
+        : `<p class="muted center small">${s.settings.rounds} round${s.settings.rounds === 1 ? '' : 's'} — waiting for ${esc(s.players[0]?.name || 'the host')} to start…</p>`}
       <button class="ghost" data-a="stage">Turn this device into the big screen<br><span class="small">(then rejoin on your phone — your seat is saved)</span></button>
     `);
     document.querySelector('#rounds')?.addEventListener('change', e => {
@@ -171,7 +168,6 @@ const SCREENS = {
         act('start');
       },
       stage: () => { location.href = `/?room=${s.code}&stage=1`; },
-      pace: () => act('settings', { pace: s.settings.pace === 'demo' ? 'standard' : 'demo' }),
     });
   },
 

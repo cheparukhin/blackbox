@@ -40,7 +40,7 @@ function react(bot) {
 
   if (s.phase === 'lobby' && me.isCreator && s.players.length >= 4) {
     once(bot, key, 1000, () => {
-      act(bot, 'settings', { rounds: 1, pace: 'demo' }); // one full rotation, demo timers
+      act(bot, 'settings', { rounds: 1 }); // one full rotation
       setTimeout(() => act(bot, 'start'), 300);
     });
   } else if (s.phase === 'preview' && me.isSubject) {

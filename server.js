@@ -59,20 +59,17 @@ const httpServer = http.createServer((req, res) => {
 const rooms = new Map();
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTVWXYZ23456789'; // no ambiguous glyphs
 // No house-rule toggles — sensible defaults everywhere; the consent machinery
-// is the tier ballot and the invisible burn, not settings screens. The only
-// knobs are rounds and pace ("demo" compresses every timer for stage demos).
-const PACE = {
-  standard: {
-    preview: 10, probe: 30, truth: 5, ballot: 25,
-    commit: Number(process.env.BB_COMMIT_SEC) || 15,
-    debrief: Number(process.env.BB_DEBRIEF_SEC) || 90,
-  },
-  demo: { preview: 5, probe: 20, truth: 3, ballot: 15, commit: 10, debrief: 25 },
+// is the tier ballot and the invisible burn, not settings screens. The one
+// knob is rounds. (BB_*_SEC env overrides exist for tests only.)
+const TIMERS = {
+  preview: 10, probe: 30, truth: 5, ballot: 25,
+  commit: Number(process.env.BB_COMMIT_SEC) || 15,
+  debrief: Number(process.env.BB_DEBRIEF_SEC) || 90,
 };
 // A round = everyone takes one turn as the subject. The setting counts rounds
 // (rotations); roundsTotal/roundsPlayed are turns, internal bookkeeping.
 const DEFAULT_ROUNDS = Number(process.env.BB_ROUNDS) || 3;
-const tm = room => PACE[room.settings.pace] || PACE.standard;
+const tm = () => TIMERS;
 
 function newCode() {
   let code;
@@ -87,7 +84,7 @@ function mkRoom() {
     players: [],            // {id, name, connected}
     sockets: new Map(),     // pid -> ws
     stages: new Set(),      // ws
-    settings: { rounds: DEFAULT_ROUNDS, pace: 'standard' },
+    settings: { rounds: DEFAULT_ROUNDS },
     phase: 'lobby', phaseStartedAt: Date.now(), phaseEndsAt: null, timer: null,
     tier: 1, round: -1, roundsPlayed: 0, roundsTotal: 0, // turns; set at start from rounds × players
     subjectIdx: -1, sinceBallot: 0,
@@ -282,7 +279,6 @@ function handleAction(room, pid, a, d = {}) {
       if (room.phase === 'lobby' && actingCreator) {
         const r = Math.round(Number(d.rounds));
         if (Number.isFinite(r) && r >= 1) room.settings.rounds = Math.min(10, r);
-        if (['standard', 'demo'].includes(d.pace)) room.settings.pace = d.pace;
         broadcast(room);
       }
       break;
